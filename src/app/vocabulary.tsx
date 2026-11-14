@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useProgress } from "@/lib/store";
 import { exportVocabularyJson, mergeVocabularyJson } from "@/features/vocabulary/transfer";
+import { checkMultipleChoiceAnswer, makeMultipleChoiceQuestion } from "@/features/vocabulary/multiple-choice";
 import { makeThemedStyles } from "@/lib/theme";
 import {
   applyVocabularyReview, dueVocabularyWords, emptyVocabulary, loadVocabulary,
@@ -27,6 +28,8 @@ export default function VocabularyScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
+  const [quizId, setQuizId] = useState<string | null>(null);
+  const [quizAnswerId, setQuizAnswerId] = useState<string | null>(null);
   const [transferMode, setTransferMode] = useState<"none" | "export" | "import">("none");
   const [transferText, setTransferText] = useState("");
   const [transferResult, setTransferResult] = useState("");
@@ -59,6 +62,8 @@ export default function VocabularyScreen() {
   const selected = lists.find((list) => list.id === selectedId) ?? null;
   const due = selected ? dueVocabularyWords(selected) : [];
   const reviewWord = selected?.words.find((w) => w.id === reviewId) ?? null;
+  const quiz = selected && quizId ? makeMultipleChoiceQuestion(selected, quizId) : null;
+  const quizEligible = selected ? due.find((word) => makeMultipleChoiceQuestion(selected, word.id) !== null) : null;
 
   const addList = async () => {
     const title = listName.trim();
@@ -117,7 +122,22 @@ export default function VocabularyScreen() {
       setReviewId(null); setFlipped(false);
     }
   };
-  const startReview = () => { setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const startReview = () => { setQuizId(null); setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const startQuiz = () => { setReviewId(null); setQuizAnswerId(null); setQuizId(quizEligible?.id ?? null); };
+  const submitQuiz = async (answerId: string) => {
+    if (!selected || !quiz || quizAnswerId || busy) return;
+    const correct = checkMultipleChoiceAnswer(quiz, answerId);
+    const next = applyVocabularyReview(data, selected.id, quiz.wordId, correct);
+    if (await update(next)) setQuizAnswerId(answerId);
+  };
+  const nextQuiz = () => {
+    if (!selected) return;
+    const next = dueVocabularyWords(selected).find((word) =>
+      word.id !== quizId && makeMultipleChoiceQuestion(selected, word.id) !== null
+    );
+    setQuizId(next?.id ?? null);
+    setQuizAnswerId(null);
+  };
   const beginExport = () => {
     setError("");
     setTransferResult("");
@@ -146,7 +166,7 @@ export default function VocabularyScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); } else router.back(); }} accessibilityRole="button">
+        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); setQuizId(null); setQuizAnswerId(null); } else router.back(); }} accessibilityRole="button">
           <Text style={styles.link}>‹ {selected ? "My lists" : "Practice"}</Text>
         </Pressable>
         <Text style={styles.heading}>Vocabulary</Text>
@@ -199,11 +219,12 @@ export default function VocabularyScreen() {
             ))}
           </>
         ) : null}
-        {ready && selected && !reviewWord ? (
+        {ready && selected && !reviewWord && !quiz ? (
           <>
             <Text style={styles.subheading}>{selected.title}</Text>
             <Text style={styles.muted}>{selected.category || "Personal list"} · {selected.words.length} words · {due.length} due now</Text>
             <Action label={due.length ? `Review flashcards (${due.length})` : "No reviews due"} onPress={startReview} disabled={busy || due.length === 0} />
+            <Action label={quizEligible ? "Multiple choice" : "Multiple choice (requires two distinct translations)"} onPress={startQuiz} disabled={busy || !quizEligible} />
             <Text style={styles.subheading}>{editId ? "Edit word" : "Add word"}</Text>
             <TextInput accessibilityLabel="Word" style={styles.input} placeholder="Word" placeholderTextColor="#888" value={value} onChangeText={setValue} />
             <TextInput accessibilityLabel="Translation" style={styles.input} placeholder="Translation" placeholderTextColor="#888" value={translation} onChangeText={setTranslation} />
@@ -224,6 +245,30 @@ export default function VocabularyScreen() {
             ))}
             <Action label="Delete list" onPress={deleteList} disabled={busy} />
           </>
+        ) : null}
+        {ready && selected && quiz ? (
+          <View style={styles.card}>
+            <Text style={styles.muted}>Multiple choice · Choose the correct translation</Text>
+            <Text style={styles.flashcard}>{quiz.prompt}</Text>
+            {quiz.options.map((option) => (
+              <Action
+                key={option.wordId}
+                label={option.label}
+                disabled={busy || quizAnswerId !== null}
+                onPress={() => void submitQuiz(option.wordId)}
+              />
+            ))}
+            {quizAnswerId ? (
+              <>
+                <Text accessibilityRole="alert" style={styles.cardTitle}>
+                  {checkMultipleChoiceAnswer(quiz, quizAnswerId) ? "Correct!" : "Try again next time."}
+                </Text>
+                <Text style={styles.muted}>Answer: {quiz.options.find((option) => option.wordId === quiz.correctWordId)?.label}</Text>
+                <Action label="Next question" onPress={nextQuiz} disabled={busy} />
+              </>
+            ) : null}
+            <Action label="Finish quiz" onPress={() => { setQuizId(null); setQuizAnswerId(null); }} disabled={busy} />
+          </View>
         ) : null}
         {ready && selected && reviewWord ? (
           <View style={styles.card}>
