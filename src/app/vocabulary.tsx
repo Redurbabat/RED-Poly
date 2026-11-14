@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useProgress } from "@/lib/store";
@@ -90,26 +90,22 @@ export default function VocabularyScreen() {
   };
   const deleteWord = (word: VocabularyWord) => {
     if (!selected) return;
-    Alert.alert("Delete word?", word.value, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => {
-        void update({ ...data, lists: data.lists.map((l) => l.id !== selected.id ? l : {
-          ...l, words: l.words.filter((w) => w.id !== word.id),
-        }) });
-        if (editId === word.id) { setEditId(null); setValue(""); setTranslation(""); setExample(""); }
-      } },
-    ]);
+    confirmDeletion("Delete word?", word.value, () => {
+      void update({ ...data, lists: data.lists.map((l) => l.id !== selected.id ? l : {
+        ...l, words: l.words.filter((w) => w.id !== word.id),
+      }) });
+      if (editId === word.id) { setEditId(null); setValue(""); setTranslation(""); setExample(""); }
+    });
   };
   const deleteList = () => {
     if (!selected) return;
-    Alert.alert("Delete list?", `Delete "${selected.title}" and all its words?`, [
-      { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: async () => {
+    confirmDeletion("Delete list?", `Delete "${selected.title}" and all its words?`, () => {
+      void (async () => {
         if (await update({ ...data, lists: data.lists.filter((l) => l.id !== selected.id) })) {
           setSelectedId(null); setReviewId(null); setEditId(null);
         }
-      } },
-    ]);
+      })();
+    });
   };
   const answer = async (correct: boolean) => {
     if (!selected || !reviewWord) return;
@@ -190,6 +186,16 @@ export default function VocabularyScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+function confirmDeletion(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === "web") {
+    if (typeof window !== "undefined" && window.confirm(title + "\\n" + message)) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: "Cancel", style: "cancel" },
+    { text: "Delete", style: "destructive", onPress: onConfirm },
+  ]);
 }
 function Action({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   const styles = useStyles();
