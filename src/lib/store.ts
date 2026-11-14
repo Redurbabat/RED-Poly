@@ -3,6 +3,20 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isDue, reviewWord, type SrsEntry } from "./srs";
+import {
+  PROGRESS_STORAGE_KEY,
+  PROGRESS_STORAGE_VERSION,
+  addVocabularyList as insertVocabularyList,
+  addVocabularyWord as insertVocabularyWord,
+  createProgressBackup,
+  migrateProgressData,
+  restoreProgressBackupToStorage,
+} from "./progress-data.mjs";
+import type {
+  LanguagePreferences,
+  VocabularyList,
+  VocabularyWord,
+} from "./progress-data.mjs";
 
 export const XP_PER_LESSON = 15;
 export const XP_PERFECT_BONUS = 5;
@@ -60,6 +74,16 @@ type ProgressState = {
   courses: Record<string, CourseProgress>;
   /** Per-day activity across courses, for the streak calendar and quests. */
   activeDays: Record<string, DayActivity>;
+  /** Same persisted state as lessons and SRS. No competing vocabulary store. */
+  vocabularyLists: VocabularyList[];
+  /** UI language is independent of selected learning course. */
+  languagePreferences: LanguagePreferences;
+
+  addVocabularyList: (list: VocabularyList) => void;
+  addVocabularyWord: (listId: string, word: VocabularyWord) => void;
+  /** Agent 02/03 shared review entry point, explicitly scoped to a course. */
+  reviewLearningItem: (courseId: string, reviewKey: string, correct: boolean) => void;
+  setLanguagePreferences: (preferences: LanguagePreferences) => void;
 
   course: () => CourseProgress;
   completeLesson: (lessonId: string, perfect: boolean) => void;
@@ -109,6 +133,8 @@ export const useProgress = create<ProgressState>()(
       themePreference: "system",
       courses: {},
       activeDays: {},
+      vocabularyLists: [],
+      languagePreferences: { uiLanguage: "en", nativeLanguage: "en" },
 
       course: () => (get().courses ?? {})[get().activeCourseId] ?? emptyCourseProgress(),
 
@@ -201,6 +227,38 @@ export const useProgress = create<ProgressState>()(
           })
         ),
 
+      addVocabularyList: (list) =>
+        set((state) => ({
+          vocabularyLists: insertVocabularyList(state.vocabularyLists ?? [], list),
+        })),
+
+      addVocabularyWord: (listId, word) =>
+        set((state) => ({
+          vocabularyLists: insertVocabularyWord(state.vocabularyLists ?? [], listId, word),
+        })),
+
+      reviewLearningItem: (courseId, reviewKey, correct) =>
+        set((state) =>
+          updateCourse(state, courseId, (c) => {
+            const previous = c.wordStats[reviewKey] ?? { correct: 0, wrong: 0, lastSeen: 0 };
+            return {
+              ...c,
+              wordStats: {
+                ...c.wordStats,
+                [reviewKey]: {
+                  correct: previous.correct + (correct ? 1 : 0),
+                  wrong: previous.wrong + (correct ? 0 : 1),
+                  lastSeen: Date.now(),
+                },
+              },
+              srs: { ...c.srs, [reviewKey]: reviewWord(c.srs[reviewKey], correct ? 2 : 0) },
+            };
+          })
+        ),
+
+      setLanguagePreferences: (preferences) =>
+        set({ languagePreferences: preferences }),
+
       setActiveCourse: (courseId) => set({ activeCourseId: courseId }),
 
       setThemePreference: (preference) => set({ themePreference: preference }),
@@ -209,46 +267,12 @@ export const useProgress = create<ProgressState>()(
         set({ activeCourseId: courseId, dailyGoal: goal, onboardingDone: true }),
     }),
     {
-      name: "progress-v2",
+      name: PROGRESS_STORAGE_KEY,
+      version: PROGRESS_STORAGE_VERSION,
       storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persisted: unknown) => {
-        const old = persisted as Record<string, unknown>;
-        if (old.courses) {
-          return {
-            activeDays: {},
-            themePreference: "system" as ThemePreference,
-            ...old,
-          } as ProgressState;
-        }
-        // Migrate v1 flat progress → per-course.
-        const legacy = old as {
-          xp?: number;
-          completedLessons?: Record<string, true>;
-          mistakes?: MistakeRef[];
-          wordStats?: Record<string, WordStat>;
-          srs?: Record<string, SrsEntry>;
-        };
-        return {
-          activeCourseId: DEFAULT_COURSE,
-          streak: old.streak ?? 0,
-          lastActiveDay: old.lastActiveDay ?? null,
-          dailyGoal: old.dailyGoal ?? DEFAULT_DAILY_GOAL,
-          dailyXp: old.dailyXp ?? 0,
-          dailyXpDay: old.dailyXpDay ?? null,
-          onboardingDone: old.onboardingDone ?? false,
-          themePreference: (old.themePreference as ThemePreference) ?? "system",
-          activeDays: (old.activeDays as Record<string, DayActivity>) ?? {},
-          courses: {
-            [DEFAULT_COURSE]: {
-              xp: legacy.xp ?? 0,
-              completedLessons: legacy.completedLessons ?? {},
-              mistakes: legacy.mistakes ?? [],
-              wordStats: legacy.wordStats ?? {},
-              srs: legacy.srs ?? {},
-            },
-          },
-        };
-      },
+      // Zustand's old unversioned payloads are v0. Keep progress-v2 unchanged.
+      migrate: (persisted: unknown, fromVersion: number) =>
+        migrateProgressData(persisted, fromVersion) as ProgressState,
     }
   )
 );
@@ -343,4 +367,22 @@ export function dueSrsWords(srs: Record<string, SrsEntry> = {}, now = Date.now()
   return Object.entries(srs ?? {})
     .filter(([, entry]) => isDue(entry, now))
     .map(([target]) => target);
+}
+
+/**
+ * Export the current persisted learning snapshot (no actions or secrets).
+ * The caller chooses where to save/share the returned JSON.
+ */
+export function exportProgressBackup(): string {
+  return createProgressBackup(useProgress.getState());
+}
+
+/**
+ * Explicit restore operation, NOT called automatically on startup.
+ * Only invoke while learning edits are paused; an original-byte checkpoint
+ * is retained under progress-v2-restore-checkpoint for recovery.
+ */
+export async function restoreProgressBackup(serialized: string): Promise<void> {
+  await restoreProgressBackupToStorage(serialized, AsyncStorage);
+  await useProgress.persist.rehydrate();
 }
