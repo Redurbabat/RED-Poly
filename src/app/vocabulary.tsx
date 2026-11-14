@@ -3,6 +3,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useProgress } from "@/lib/store";
+import { exportVocabularyJson, mergeVocabularyJson } from "@/features/vocabulary/transfer";
 import { makeThemedStyles } from "@/lib/theme";
 import {
   applyVocabularyReview, dueVocabularyWords, emptyVocabulary, loadVocabulary,
@@ -26,6 +27,9 @@ export default function VocabularyScreen() {
   const [editId, setEditId] = useState<string | null>(null);
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [flipped, setFlipped] = useState(false);
+  const [transferMode, setTransferMode] = useState<"none" | "export" | "import">("none");
+  const [transferText, setTransferText] = useState("");
+  const [transferResult, setTransferResult] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +118,30 @@ export default function VocabularyScreen() {
     }
   };
   const startReview = () => { setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const beginExport = () => {
+    setError("");
+    setTransferResult("");
+    setTransferText(exportVocabularyJson(data));
+    setTransferMode("export");
+  };
+  const beginImport = () => {
+    setError("");
+    setTransferResult("");
+    setTransferText("");
+    setTransferMode("import");
+  };
+  const importBackup = async () => {
+    try {
+      const result = mergeVocabularyJson(data, transferText);
+      if (await update(result.data)) {
+        setTransferResult(`Imported ${result.addedLists} lists; skipped ${result.skippedLists} already present.`);
+        setTransferMode("none");
+        setTransferText("");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The backup could not be imported.");
+    }
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
@@ -130,6 +158,37 @@ export default function VocabularyScreen() {
             <TextInput style={styles.input} placeholder="List name" placeholderTextColor="#888" value={listName} onChangeText={setListName} accessibilityLabel="List name" />
             <TextInput style={styles.input} placeholder="Category or topic (optional)" placeholderTextColor="#888" value={category} onChangeText={setCategory} accessibilityLabel="Category" />
             <Action label="Create list" onPress={() => void addList()} disabled={busy} />
+            <Text style={styles.subheading}>Backup and restore</Text>
+            <Text style={styles.muted}>Local JSON backup of vocabulary lists, words and review schedules. Course XP is not included.</Text>
+            <View style={styles.row}>
+              <Action label="Export JSON" onPress={beginExport} disabled={busy} />
+              <Action label="Import JSON" onPress={beginImport} disabled={busy} />
+            </View>
+            {transferResult ? <Text style={styles.muted}>{transferResult}</Text> : null}
+            {transferMode !== "none" ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>{transferMode === "export" ? "Copy your backup" : "Paste your backup"}</Text>
+                <Text style={styles.muted}>
+                  {transferMode === "export"
+                    ? "Select all JSON below and copy it to a safe location."
+                    : "Import adds lists without replacing existing lists or learned progress."}
+                </Text>
+                <TextInput
+                  style={[styles.input, styles.backupInput]}
+                  accessibilityLabel="Vocabulary backup JSON"
+                  value={transferText}
+                  onChangeText={setTransferText}
+                  multiline
+                  selectTextOnFocus={transferMode === "export"}
+                  editable={transferMode === "import"}
+                  textAlignVertical="top"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {transferMode === "import" ? <Action label="Import backup" disabled={busy || !transferText.trim()} onPress={() => void importBackup()} /> : null}
+                <Action label="Close" onPress={() => { setTransferMode("none"); setTransferText(""); }} />
+              </View>
+            ) : null}
             <Text style={styles.subheading}>Your lists ({lists.length})</Text>
             {lists.length === 0 ? <Text style={styles.muted}>No lists yet for this course. Create one to start learning offline.</Text> : null}
             {lists.map((list) => (
@@ -220,4 +279,5 @@ const useStyles = makeThemedStyles((colors) => StyleSheet.create({
   disabled: { opacity: 0.45 },
   flashcard: { color: colors.text, fontSize: 30, fontWeight: "800", textAlign: "center", paddingVertical: 35 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  backupInput: { minHeight: 180, fontFamily: "monospace", fontSize: 12 },
 }));
