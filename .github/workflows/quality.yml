@@ -1,0 +1,44 @@
+name: RED POLY Quality
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [agent/04-design-qa]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Install, types, lint, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+      - name: Install exact locked dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript
+        run: bunx tsc --noEmit
+      - name: Lint (when configuration is present)
+        shell: bash
+        run: |
+          if [[ -f eslint.config.js || -f eslint.config.mjs || -f eslint.config.cjs || -f .eslintrc || -f .eslintrc.json || -f .eslintrc.js ]]; then
+            bun run lint
+          else
+            echo "::notice::No root ESLint configuration; lint is not available yet."
+          fi
+      - name: Unit and structure tests
+        run: node --test tests/*.test.cjs
+      - name: PR diff whitespace check
+        if: github.event_name == 'pull_request'
+        run: git diff --check "${{ github.event.pull_request.base.sha }}" HEAD
