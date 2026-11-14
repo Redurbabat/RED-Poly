@@ -7,6 +7,7 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - Personal vocabulary lists scoped to the active existing course; optional topic/category.
 - Add, edit and delete words with translations and example sentences.
 - Duplicate word guard per list.
+- Portable JSON export and additive JSON import via the existing vocabulary screen; validates input size, list IDs, word IDs and review data before persistence; repeated import skips existing list IDs.
 - Offline flashcard reveal and remembered/again grading.
 - Due-word selection and review scheduling **using the existing** `src/lib/srs.ts` SM-2-like algorithm.
 - Per-word correct/wrong counts; a separate local storage key `red-poly:vocabulary-v1`.
@@ -20,7 +21,9 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - `red-poly:vocabulary-v1` is deliberately **not** fed into `progress-v2`; until migration exists, flashcard progress and course XP are separate. Do not claim unified progress.
 
 ## Outstanding
-- Import/export, multi-choice, typing and word-bank training, cross-feature learning statistics, AI suggestions.
+- Multi-choice, typing and word-bank training, cross-feature learning statistics, AI suggestions.
+- Backup currently uses select-and-copy/paste of JSON in a text field; native share-sheet/file picker is not implemented.
+- Import skips colliding list IDs rather than overwriting them; import reports skipped lists. A future conflict-resolution/migration policy is needed.
 - WordPecker template packs require content/license review before copying.
 - More robust handling of malformed persisted data and multi-device sync.
 - Automated test harness, TypeScript build, app launch, iOS/Android/Web device checks, restart and offline tests are **not run** in this environment. No package install/build environment was available.
@@ -30,6 +33,8 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 1. Open Practice > My vocabulary; create a list, add two words and examples.
 2. Edit one word, remove the other; confirm the remaining word and category.
 3. Start flashcards, reveal translation, mark remembered; confirm due count drops.
-4. Force-close/reopen; confirm words, counters and due dates persist.
-5. Repeat with airplane mode; switch courses and verify lists are correctly scoped.
-6. Verify original lesson, mistake-review and SRS flows still work.
+4. Export JSON, copy it, import into empty storage and verify words and review counters.
+5. Import the same JSON again; verify duplicate list IDs are skipped and existing progress is not overwritten.
+6. Force-close/reopen; confirm words, counters and due dates persist.
+7. Repeat with airplane mode; switch courses and verify lists are correctly scoped.
+8. Verify original lesson, mistake-review and SRS flows still work.
