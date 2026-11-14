@@ -1,0 +1,97 @@
+@startuml
+
+skinparam classAttributeIconSize 0
+skinparam monochrome false
+
+title WordPecker Application Structure
+
+class WordList {
+  _id : ObjectId
+  name : String
+  description : String
+  context : String
+  created_at : Date
+  updated_at : Date
+  ----
+  addWord(word: String) : Word
+  removeWord(wordId: ObjectId) : void
+  startLearnMode() : Session
+  startQuizMode() : Session
+}
+
+class Word {
+  _id : ObjectId
+  list_id : ObjectId
+  value : String
+  meaning : String
+  created_at : Date
+  updated_at : Date
+  ----
+  fetchMeaning() : void
+}
+
+class Session {
+  _id : ObjectId
+  list_id : ObjectId
+  type : String
+  score : Number
+  current_exercise_index : Number
+  created_at : Date
+  completed_at : Date
+  ----
+  generateNewExercises() : void
+  nextExercise() : Exercise
+  submitAnswer(answer: String) : boolean
+  calculateScore() : Number
+}
+
+class Exercise {
+  word_id : String
+  type : String
+  question : String
+  correctAnswer : String
+  options : List<String>
+  ----
+  isCorrect(answer: String) : boolean
+}
+
+abstract class MongooseModel {
+  ----
+  save() : Promise
+  findById(id: ObjectId) : Promise
+  find(query: Object) : Promise
+  findByIdAndUpdate(id: ObjectId, update: Object) : Promise
+  findByIdAndDelete(id: ObjectId) : Promise
+}
+
+class LLMService {
+  ----
+  generateMeaning(word: String, context: String) : String
+  generateExercises(words: List<Word>, type: String, count: Number) : List<Exercise>
+}
+
+WordList ||--o{ Word : contains
+WordList ||--o{ Session : creates
+Session ||--o{ Exercise : generates
+Word ..> LLMService : uses
+Session ..> LLMService : uses
+WordList --|> MongooseModel
+Word --|> MongooseModel
+Session --|> MongooseModel
+
+note top of WordList
+  Single User Application
+  No Authentication Required
+end note
+
+note right of Session
+  type can be 'learn' or 'quiz'
+  Same model handles both types
+end note
+
+note right of MongooseModel
+  All models use MongoDB ObjectId
+  Automatic timestamps with Mongoose
+end note
+
+@enduml

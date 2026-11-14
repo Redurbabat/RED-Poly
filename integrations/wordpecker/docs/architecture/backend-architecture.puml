@@ -1,0 +1,64 @@
+@startuml
+
+!define RECTANGLE class
+
+skinparam componentStyle rectangle
+skinparam monochrome false
+skinparam shadowing false
+
+package "Frontend" {
+    [React.js App]
+}
+
+package "Backend Services" {
+    package "Express Server" {
+        [REST API] as api
+        [Middleware] as middleware
+        [Controllers] as controllers
+        [Rate Limiter] as ratelimit
+        [Validation] as validation
+    }
+
+    package "Database Layer" {
+        [Mongoose ODM] as mongoose
+        database "MongoDB" as db
+    }
+    
+    [OpenAI Service] as llm
+}
+
+cloud "External Services" {
+    [OpenAI API] as openai
+}
+
+package "Docker Environment" {
+    [MongoDB Container] as mongo_container
+    [Backend Container] as backend_container
+    [Frontend Container] as frontend_container
+}
+
+[React.js App] --> api : HTTP requests
+api --> middleware : Request processing
+middleware --> validation : Input validation
+validation --> controllers : Business logic
+controllers --> mongoose : Data operations
+mongoose --> db : Database queries
+controllers --> llm : Exercise generation
+llm --> openai : API calls
+ratelimit --> api : Protect OpenAI endpoints
+
+mongo_container --> db : Hosts MongoDB
+backend_container --> api : Hosts Express server
+frontend_container --> [React.js App] : Hosts React app
+
+note right of validation
+  Uses ObjectId validation
+  instead of UUID
+end note
+
+note top of db
+  Single user approach
+  No authentication required
+end note
+
+@enduml

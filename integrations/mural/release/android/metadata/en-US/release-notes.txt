@@ -1,0 +1,1 @@
+Minute packs now use local Google Play prices in supported countries. We also improved purchase recovery and availability messages.
