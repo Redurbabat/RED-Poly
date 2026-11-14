@@ -14,10 +14,6 @@ const text = (value) => typeof value === "string" && value.trim().length > 0;
 const safeId = (value) => text(value) && !["__proto__", "prototype", "constructor"].includes(value);
 const assert = (ok, message) => { if (!ok) throw new Error("Invalid RED POLY progress: " + message); };
 
-const defaultCourse = () => ({
-  xp: 0, completedLessons: {}, mistakes: [], wordStats: {}, srs: {},
-});
-
 function verifyCourse(course) {
   assert(object(course), "course must be an object");
   assert(nonNegative(course.xp), "course XP");
@@ -25,6 +21,18 @@ function verifyCourse(course) {
   assert(Array.isArray(course.mistakes), "mistakes");
   assert(object(course.wordStats), "word statistics");
   assert(object(course.srs), "SRS entries");
+  for (const [id, completed] of Object.entries(course.completedLessons)) {
+    assert(safeId(id) && completed === true, "completed lesson");
+  }
+  for (const mistake of course.mistakes) {
+    assert(object(mistake) && safeId(mistake.lessonId) &&
+      safeId(mistake.exerciseId), "mistake reference");
+  }
+  for (const [key, stat] of Object.entries(course.wordStats)) {
+    assert(safeId(key) && object(stat), "word statistics key");
+    assert(nonNegative(stat.correct) && nonNegative(stat.wrong) &&
+      nonNegative(stat.lastSeen), "word statistics entry");
+  }
   for (const [key, entry] of Object.entries(course.srs)) {
     assert(safeId(key) && object(entry), "SRS key");
     assert(nonNegative(entry.interval) && finite(entry.ease) &&
@@ -35,6 +43,8 @@ function verifyCourse(course) {
 function verifyWord(word) {
   assert(object(word) && safeId(word.id), "vocabulary word ID");
   assert(text(word.target) && text(word.native), "vocabulary word text");
+  assert(word.source === undefined ||
+    ["manual", "wordpecker", "conversation"].includes(word.source), "word source");
 }
 
 function verifyList(list) {
@@ -91,12 +101,21 @@ export function validateProgressData(data) {
   assert(safeId(data.activeCourseId), "active course ID");
   assert(nonNegative(data.streak) && nonNegative(data.dailyXp) &&
     nonNegative(data.dailyGoal), "streak or daily totals");
+  assert(typeof data.onboardingDone === "boolean", "onboarding flag");
+  assert(["system", "light", "dark"].includes(data.themePreference), "theme preference");
+  assert(data.lastActiveDay === null || text(data.lastActiveDay), "last active day");
+  assert(data.dailyXpDay === null || text(data.dailyXpDay), "daily XP day");
   assert(object(data.courses), "courses object");
   for (const [id, course] of Object.entries(data.courses)) {
     assert(safeId(id), "course ID");
     verifyCourse(course);
   }
   assert(object(data.activeDays), "activity history");
+  for (const [day, activity] of Object.entries(data.activeDays)) {
+    assert(/^\d{4}-\d{2}-\d{2}$/.test(day) && object(activity), "activity day");
+    assert(nonNegative(activity.xp) && nonNegative(activity.lessons) &&
+      nonNegative(activity.perfect), "activity totals");
+  }
   assert(Array.isArray(data.vocabularyLists), "vocabulary lists");
   const ids = new Set();
   for (const list of data.vocabularyLists) {
