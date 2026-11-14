@@ -6,6 +6,7 @@ import { useProgress } from "@/lib/store";
 import { exportVocabularyJson, mergeVocabularyJson } from "@/features/vocabulary/transfer";
 import { checkMultipleChoiceAnswer, makeMultipleChoiceQuestion } from "@/features/vocabulary/multiple-choice";
 import { checkWritingAnswer } from "@/features/vocabulary/writing";
+import { checkWordBankAnswer, makeWordBankQuestion } from "@/features/vocabulary/word-bank";
 import { makeThemedStyles } from "@/lib/theme";
 import {
   applyVocabularyReview, dueVocabularyWords, emptyVocabulary, loadVocabulary,
@@ -34,6 +35,9 @@ export default function VocabularyScreen() {
   const [writingId, setWritingId] = useState<string | null>(null);
   const [writingAnswer, setWritingAnswer] = useState("");
   const [writingResult, setWritingResult] = useState<boolean | null>(null);
+  const [bankId, setBankId] = useState<string | null>(null);
+  const [bankSelection, setBankSelection] = useState<number[]>([]);
+  const [bankResult, setBankResult] = useState<boolean | null>(null);
   const [transferMode, setTransferMode] = useState<"none" | "export" | "import">("none");
   const [transferText, setTransferText] = useState("");
   const [transferResult, setTransferResult] = useState("");
@@ -67,6 +71,9 @@ export default function VocabularyScreen() {
   const due = selected ? dueVocabularyWords(selected) : [];
   const reviewWord = selected?.words.find((w) => w.id === reviewId) ?? null;
   const writingWord = selected?.words.find((w) => w.id === writingId) ?? null;
+  const bankWord = selected?.words.find((w) => w.id === bankId) ?? null;
+  const bankQuestion = bankWord ? makeWordBankQuestion(bankWord) : null;
+  const bankEligible = due.find((word) => makeWordBankQuestion(word) !== null);
   const quiz = selected && quizId ? makeMultipleChoiceQuestion(selected, quizId) : null;
   const quizEligible = selected ? due.find((word) => makeMultipleChoiceQuestion(selected, word.id) !== null) : null;
 
@@ -127,9 +134,27 @@ export default function VocabularyScreen() {
       setReviewId(null); setFlipped(false);
     }
   };
-  const startReview = () => { setWritingId(null); setQuizId(null); setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const startReview = () => { setBankId(null); setWritingId(null); setQuizId(null); setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const startBank = () => {
+    setReviewId(null); setQuizId(null); setWritingId(null);
+    setBankId(bankEligible?.id ?? null); setBankSelection([]); setBankResult(null);
+  };
+  const submitBank = async () => {
+    if (!selected || !bankQuestion || bankResult !== null || busy ||
+        bankSelection.length !== bankQuestion.tokens.length) return;
+    const correct = checkWordBankAnswer(bankQuestion, bankSelection);
+    if (await update(applyVocabularyReview(data, selected.id, bankQuestion.wordId, correct))) {
+      setBankResult(correct);
+    }
+  };
+  const nextBank = () => {
+    if (!selected) return;
+    const next = dueVocabularyWords(selected).find((word) =>
+      word.id !== bankId && makeWordBankQuestion(word) !== null);
+    setBankId(next?.id ?? null); setBankSelection([]); setBankResult(null);
+  };
   const startWriting = () => {
-    setReviewId(null); setQuizId(null);
+    setBankId(null); setReviewId(null); setQuizId(null);
     setWritingId(due[0]?.id ?? null); setWritingAnswer(""); setWritingResult(null);
   };
   const submitWriting = async () => {
@@ -147,7 +172,7 @@ export default function VocabularyScreen() {
     setWritingAnswer("");
     setWritingResult(null);
   };
-  const startQuiz = () => { setWritingId(null); setReviewId(null); setQuizAnswerId(null); setQuizId(quizEligible?.id ?? null); };
+  const startQuiz = () => { setBankId(null); setWritingId(null); setReviewId(null); setQuizAnswerId(null); setQuizId(quizEligible?.id ?? null); };
   const submitQuiz = async (answerId: string) => {
     if (!selected || !quiz || quizAnswerId || busy) return;
     const correct = checkMultipleChoiceAnswer(quiz, answerId);
@@ -190,7 +215,7 @@ export default function VocabularyScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); setQuizId(null); setQuizAnswerId(null); setWritingId(null); setWritingResult(null); setWritingAnswer(""); } else router.back(); }} accessibilityRole="button">
+        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); setQuizId(null); setQuizAnswerId(null); setWritingId(null); setWritingResult(null); setWritingAnswer(""); setBankId(null); setBankSelection([]); setBankResult(null); } else router.back(); }} accessibilityRole="button">
           <Text style={styles.link}>‹ {selected ? "My lists" : "Practice"}</Text>
         </Pressable>
         <Text style={styles.heading}>Vocabulary</Text>
@@ -243,13 +268,14 @@ export default function VocabularyScreen() {
             ))}
           </>
         ) : null}
-        {ready && selected && !reviewWord && !quiz && !writingWord ? (
+        {ready && selected && !reviewWord && !quiz && !writingWord && !bankWord ? (
           <>
             <Text style={styles.subheading}>{selected.title}</Text>
             <Text style={styles.muted}>{selected.category || "Personal list"} · {selected.words.length} words · {due.length} due now</Text>
             <Action label={due.length ? `Review flashcards (${due.length})` : "No reviews due"} onPress={startReview} disabled={busy || due.length === 0} />
             <Action label={quizEligible ? "Multiple choice" : "Multiple choice (requires two distinct translations)"} onPress={startQuiz} disabled={busy || !quizEligible} />
             <Action label={due.length ? "Writing practice" : "Writing practice (no words due)"} onPress={startWriting} disabled={busy || due.length === 0} />
+            <Action label={bankEligible ? "Word bank" : "Word bank (requires a phrase)"} onPress={startBank} disabled={busy || !bankEligible} />
             <Text style={styles.subheading}>{editId ? "Edit word" : "Add word"}</Text>
             <TextInput accessibilityLabel="Word" style={styles.input} placeholder="Word" placeholderTextColor="#888" value={value} onChangeText={setValue} />
             <TextInput accessibilityLabel="Translation" style={styles.input} placeholder="Translation" placeholderTextColor="#888" value={translation} onChangeText={setTranslation} />
@@ -270,6 +296,46 @@ export default function VocabularyScreen() {
             ))}
             <Action label="Delete list" onPress={deleteList} disabled={busy} />
           </>
+        ) : null}
+        {ready && selected && bankQuestion ? (
+          <View style={styles.card}>
+            <Text style={styles.muted}>Word bank · Arrange the translation</Text>
+            <Text style={styles.flashcard}>{bankQuestion.prompt}</Text>
+            <Text style={styles.cardTitle}>Your answer</Text>
+            <View style={styles.row}>
+              {bankSelection.map((tokenId) => {
+                const token = bankQuestion.tokens.find((item) => item.id === tokenId);
+                return token ? (
+                  <Action key={tokenId} label={token.value}
+                    disabled={busy || bankResult !== null}
+                    onPress={() => setBankSelection((prev) => prev.filter((id) => id !== tokenId))} />
+                ) : null;
+              })}
+            </View>
+            <Text style={styles.cardTitle}>Word bank</Text>
+            <View style={styles.row}>
+              {bankQuestion.tokens.filter((token) => !bankSelection.includes(token.id)).map((token) => (
+                <Action key={token.id} label={token.value}
+                  disabled={busy || bankResult !== null}
+                  onPress={() => setBankSelection((prev) => prev.includes(token.id) ? prev : [...prev, token.id])} />
+              ))}
+            </View>
+            {bankResult === null ? (
+              <Action label="Check word order"
+                disabled={busy || bankSelection.length !== bankQuestion.tokens.length}
+                onPress={() => void submitBank()} />
+            ) : (
+              <>
+                <Text accessibilityRole="alert" style={styles.cardTitle}>
+                  {bankResult ? "Correct!" : "Not quite. Review this phrase again."}
+                </Text>
+                <Text style={styles.muted}>Expected answer: {bankQuestion.expected}</Text>
+                <Action label="Next phrase" onPress={nextBank} disabled={busy} />
+              </>
+            )}
+            <Action label="Finish word bank" disabled={busy}
+              onPress={() => { setBankId(null); setBankSelection([]); setBankResult(null); }} />
+          </View>
         ) : null}
         {ready && selected && writingWord ? (
           <View style={styles.card}>
