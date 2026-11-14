@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useProgress } from "@/lib/store";
 import { exportVocabularyJson, mergeVocabularyJson } from "@/features/vocabulary/transfer";
 import { checkMultipleChoiceAnswer, makeMultipleChoiceQuestion } from "@/features/vocabulary/multiple-choice";
+import { checkWritingAnswer } from "@/features/vocabulary/writing";
 import { makeThemedStyles } from "@/lib/theme";
 import {
   applyVocabularyReview, dueVocabularyWords, emptyVocabulary, loadVocabulary,
@@ -30,6 +31,9 @@ export default function VocabularyScreen() {
   const [flipped, setFlipped] = useState(false);
   const [quizId, setQuizId] = useState<string | null>(null);
   const [quizAnswerId, setQuizAnswerId] = useState<string | null>(null);
+  const [writingId, setWritingId] = useState<string | null>(null);
+  const [writingAnswer, setWritingAnswer] = useState("");
+  const [writingResult, setWritingResult] = useState<boolean | null>(null);
   const [transferMode, setTransferMode] = useState<"none" | "export" | "import">("none");
   const [transferText, setTransferText] = useState("");
   const [transferResult, setTransferResult] = useState("");
@@ -62,6 +66,7 @@ export default function VocabularyScreen() {
   const selected = lists.find((list) => list.id === selectedId) ?? null;
   const due = selected ? dueVocabularyWords(selected) : [];
   const reviewWord = selected?.words.find((w) => w.id === reviewId) ?? null;
+  const writingWord = selected?.words.find((w) => w.id === writingId) ?? null;
   const quiz = selected && quizId ? makeMultipleChoiceQuestion(selected, quizId) : null;
   const quizEligible = selected ? due.find((word) => makeMultipleChoiceQuestion(selected, word.id) !== null) : null;
 
@@ -122,8 +127,27 @@ export default function VocabularyScreen() {
       setReviewId(null); setFlipped(false);
     }
   };
-  const startReview = () => { setQuizId(null); setReviewId(due[0]?.id ?? null); setFlipped(false); };
-  const startQuiz = () => { setReviewId(null); setQuizAnswerId(null); setQuizId(quizEligible?.id ?? null); };
+  const startReview = () => { setWritingId(null); setQuizId(null); setReviewId(due[0]?.id ?? null); setFlipped(false); };
+  const startWriting = () => {
+    setReviewId(null); setQuizId(null);
+    setWritingId(due[0]?.id ?? null); setWritingAnswer(""); setWritingResult(null);
+  };
+  const submitWriting = async () => {
+    if (!selected || !writingWord || !writingAnswer.trim() || writingResult !== null || busy) return;
+    const correct = checkWritingAnswer(writingAnswer, writingWord.translation);
+    if (await update(applyVocabularyReview(data, selected.id, writingWord.id, correct))) {
+      setWritingResult(correct);
+    }
+  };
+  const nextWriting = () => {
+    if (!selected) return;
+    // Never repeat the same word automatically after an incorrect answer.
+    const next = dueVocabularyWords(selected).find((word) => word.id !== writingId);
+    setWritingId(next?.id ?? null);
+    setWritingAnswer("");
+    setWritingResult(null);
+  };
+  const startQuiz = () => { setWritingId(null); setReviewId(null); setQuizAnswerId(null); setQuizId(quizEligible?.id ?? null); };
   const submitQuiz = async (answerId: string) => {
     if (!selected || !quiz || quizAnswerId || busy) return;
     const correct = checkMultipleChoiceAnswer(quiz, answerId);
@@ -166,7 +190,7 @@ export default function VocabularyScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); setQuizId(null); setQuizAnswerId(null); } else router.back(); }} accessibilityRole="button">
+        <Pressable onPress={() => { if (selected) { setSelectedId(null); setReviewId(null); setQuizId(null); setQuizAnswerId(null); setWritingId(null); setWritingResult(null); setWritingAnswer(""); } else router.back(); }} accessibilityRole="button">
           <Text style={styles.link}>‹ {selected ? "My lists" : "Practice"}</Text>
         </Pressable>
         <Text style={styles.heading}>Vocabulary</Text>
@@ -219,12 +243,13 @@ export default function VocabularyScreen() {
             ))}
           </>
         ) : null}
-        {ready && selected && !reviewWord && !quiz ? (
+        {ready && selected && !reviewWord && !quiz && !writingWord ? (
           <>
             <Text style={styles.subheading}>{selected.title}</Text>
             <Text style={styles.muted}>{selected.category || "Personal list"} · {selected.words.length} words · {due.length} due now</Text>
             <Action label={due.length ? `Review flashcards (${due.length})` : "No reviews due"} onPress={startReview} disabled={busy || due.length === 0} />
             <Action label={quizEligible ? "Multiple choice" : "Multiple choice (requires two distinct translations)"} onPress={startQuiz} disabled={busy || !quizEligible} />
+            <Action label={due.length ? "Writing practice" : "Writing practice (no words due)"} onPress={startWriting} disabled={busy || due.length === 0} />
             <Text style={styles.subheading}>{editId ? "Edit word" : "Add word"}</Text>
             <TextInput accessibilityLabel="Word" style={styles.input} placeholder="Word" placeholderTextColor="#888" value={value} onChangeText={setValue} />
             <TextInput accessibilityLabel="Translation" style={styles.input} placeholder="Translation" placeholderTextColor="#888" value={translation} onChangeText={setTranslation} />
@@ -245,6 +270,37 @@ export default function VocabularyScreen() {
             ))}
             <Action label="Delete list" onPress={deleteList} disabled={busy} />
           </>
+        ) : null}
+        {ready && selected && writingWord ? (
+          <View style={styles.card}>
+            <Text style={styles.muted}>Writing practice · Type the translation</Text>
+            <Text style={styles.flashcard}>{writingWord.value}</Text>
+            <TextInput
+              accessibilityLabel="Type the translation"
+              style={styles.input}
+              placeholder="Your translation"
+              placeholderTextColor="#888"
+              value={writingAnswer}
+              onChangeText={setWritingAnswer}
+              editable={writingResult === null && !busy}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={() => void submitWriting()}
+            />
+            {writingResult === null ? (
+              <Action label="Check answer" onPress={() => void submitWriting()} disabled={busy || !writingAnswer.trim()} />
+            ) : (
+              <>
+                <Text accessibilityRole="alert" style={styles.cardTitle}>
+                  {writingResult ? "Correct!" : "Not quite. Review this word again."}
+                </Text>
+                <Text style={styles.muted}>Expected answer: {writingWord.translation}</Text>
+                <Action label="Next word" onPress={nextWriting} disabled={busy} />
+              </>
+            )}
+            <Action label="Finish writing" onPress={() => { setWritingId(null); setWritingAnswer(""); setWritingResult(null); }} disabled={busy} />
+          </View>
         ) : null}
         {ready && selected && quiz ? (
           <View style={styles.card}>
