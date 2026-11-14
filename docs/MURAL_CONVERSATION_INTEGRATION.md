@@ -24,6 +24,6 @@
 - Stop: abort active request via AbortController; providers must respect signal and avoid auto retries on ambiguous chargeable failures.
 
 ## Verification matrix
-- Code reviewed on GitHub; no CLI, Simulator, audio device, network or real AI execution has been performed at implementation time.
+- GitHub Actions test workflow runs dependency-free Node 22 offline engine tests on PRs. Tests are not proof of an Expo runtime, device speech or real AI provider.
 - Manual tests still required: start, send, cancel, persistence after relaunch, offline, invalid data, TTS on iOS/Android/Web, microphone-disabled state, typecheck and Expo start.
 - Existing coursework remains reachable through unchanged course routes.

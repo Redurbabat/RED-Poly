@@ -1,0 +1,24 @@
+name: RED POLY Conversation Checks
+
+on:
+  pull_request:
+    paths:
+      - "src/features/conversation/**"
+      - "tests/conversation-engine.test.mjs"
+      - ".github/workflows/conversation-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run offline conversation engine tests
+        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs
