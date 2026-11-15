@@ -65,6 +65,17 @@ export function migrateProgressData(value, fromVersion = 0) {
     fromVersion <= PROGRESS_STORAGE_VERSION, "unsupported schema version");
   assert(object(value), "state must be an object");
   const old = value;
+  if (fromVersion === PROGRESS_STORAGE_VERSION) {
+    // v1 backups must never be completed using v0 defaults: missing fields
+    // are corruption, and restoring one could erase real learning history.
+    for (const field of fields) {
+      assert(Object.prototype.hasOwnProperty.call(old, field), "missing " + field);
+    }
+    return validateProgressData(old);
+  }
+  if (Object.prototype.hasOwnProperty.call(old, "courses")) {
+    assert(object(old.courses), "invalid legacy courses");
+  }
   const hasCourses = object(old.courses);
   const courses = hasCourses ? old.courses : {
     "es-en": {
@@ -167,8 +178,12 @@ export async function restoreProgressBackupToStorage(serialized, storage) {
   const nextState = parseProgressBackup(serialized);
   const original = await storage.getItem(PROGRESS_STORAGE_KEY);
   if (original !== null) {
-    await storage.setItem(RESTORE_CHECKPOINT_KEY, original);
-    assert(await storage.getItem(RESTORE_CHECKPOINT_KEY) === original, "checkpoint verification");
+    // A second restore must not overwrite the first recoverable original.
+    const checkpoint = await storage.getItem(RESTORE_CHECKPOINT_KEY);
+    if (checkpoint === null) {
+      await storage.setItem(RESTORE_CHECKPOINT_KEY, original);
+      assert(await storage.getItem(RESTORE_CHECKPOINT_KEY) === original, "checkpoint verification");
+    }
   }
   const newValue = JSON.stringify({ state: snapshot(nextState), version: PROGRESS_STORAGE_VERSION });
   try {
