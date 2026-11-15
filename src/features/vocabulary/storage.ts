@@ -43,7 +43,25 @@ export function cleanVocabulary(raw: unknown): VocabularyData {
       if (!word || typeof word.id !== "string" || typeof word.value !== "string" || typeof word.translation !== "string") {
         throw new Error("Invalid vocabulary word");
       }
-      return { ...word, example: String(word.example ?? ""), correct: Number(word.correct) || 0, wrong: Number(word.wrong) || 0 };
+      const validCount = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+      if ((word.correct !== undefined && !validCount(word.correct)) ||
+          (word.wrong !== undefined && !validCount(word.wrong))) {
+        throw new Error("Invalid vocabulary statistics");
+      }
+      const review: unknown = word.review;
+      if (review !== undefined && (
+        !review || typeof review !== "object" ||
+        !Number.isFinite((review as SrsEntry).dueAt) ||
+        !Number.isFinite((review as SrsEntry).ease) ||
+        !Number.isFinite((review as SrsEntry).interval) ||
+        !Number.isSafeInteger((review as SrsEntry).streak) ||
+        (review as SrsEntry).streak < 0 ||
+        (review as SrsEntry).interval < 0 ||
+        (review as SrsEntry).ease < 1.3
+      )) {
+        throw new Error("Invalid vocabulary review");
+      }
+      return { ...word, example: String(word.example ?? ""), correct: word.correct ?? 0, wrong: word.wrong ?? 0 };
     });
     return { ...list, category: String(list.category ?? ""), courseId: String(list.courseId ?? ""), words };
   });
