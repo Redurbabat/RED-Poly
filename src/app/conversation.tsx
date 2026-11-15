@@ -6,6 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { SafeAreaView } from "react-native-safe-area-context";
 import { demoProvider, LANGUAGES, TOPICS, makeMessage, openingLine, type LanguageCode, type Level, type Message, type Topic } from "@/features/conversation/engine";
 import { loadConversation, saveConversation } from "@/features/conversation/storage";
+import { createWebSpeechSession, isWebSpeechSupported, type SpeechSession } from "@/features/conversation/web-speech";
 import { useThemeColors } from "@/lib/theme";
 
 const OPTIONS: Level[] = ["A1", "A2", "B1", "B2", "C1"];
@@ -19,6 +20,12 @@ export default function ConversationScreen() {
   const [pending, setPending] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
+  const [speechConsentVisible, setSpeechConsentVisible] = useState(false);
+  const [speechApproved, setSpeechApproved] = useState(false);
+  const [speechStarting, setSpeechStarting] = useState(false);
+  const [speechListening, setSpeechListening] = useState(false);
+  const speechSession = useRef<SpeechSession | null>(null);
+  const webSpeechAvailable = Platform.OS === "web" && isWebSpeechSupported();
   const active = useRef<AbortController | null>(null);
   const scroll = useRef<ScrollView>(null);
   useEffect(() => {
@@ -28,13 +35,59 @@ export default function ConversationScreen() {
       if (saved) { setLanguage(saved.language); setLevel(saved.level); setTopic(saved.topic); setMessages(saved.messages); }
       setLoaded(true);
     });
-    return () => { mounted = false; active.current?.abort(); Speech.stop(); };
+    return () => { mounted = false; active.current?.abort(); speechSession.current?.abort(); speechSession.current = null; Speech.stop(); };
   }, []);
   useEffect(() => {
     if (!loaded) return;
     saveConversation({ language, level, topic, messages }).catch(() => setError("Gesprächsverlauf konnte nicht gespeichert werden."));
   }, [language, level, topic, messages, loaded]);
-  const cancel = useCallback(() => { active.current?.abort(); active.current = null; setPending(false); Speech.stop(); }, []);
+  const stopDictation = useCallback(() => {
+    const current = speechSession.current;
+    speechSession.current = null;
+    current?.abort();
+    setSpeechListening(false);
+    setSpeechStarting(false);
+    setSpeechConsentVisible(false);
+  }, []);
+  const startDictation = () => {
+    if (!webSpeechAvailable || speechSession.current) return;
+    setSpeechConsentVisible(false);
+    setError("");
+    Speech.stop();
+    const languageTag = LANGUAGES.find((item) => item.code === language)?.locale ?? "en-US";
+    const session = createWebSpeechSession(languageTag, {
+      onStart: () => {
+        if (speechSession.current === session) { setSpeechStarting(false); setSpeechListening(true); }
+      },
+      onText: (text) => {
+        if (speechSession.current === session) setInput((previous) => (previous.trim() ? previous.trim() + " " + text : text).slice(0, 1000));
+      },
+      onEnd: () => {
+        if (speechSession.current === session) {
+          speechSession.current = null; setSpeechStarting(false); setSpeechListening(false);
+        }
+      },
+      onError: (reason) => {
+        if (speechSession.current !== session) return;
+        setError(reason === "permission" ? "Mikrofonzugriff verweigert."
+          : reason === "network" ? "Spracherkennung benötigt derzeit eine Netzwerkverbindung."
+          : reason === "no-speech" ? "Keine Sprache erkannt. Bitte erneut versuchen."
+          : "Spracherkennung nicht verfügbar.");
+      },
+    });
+    if (!session) { setError("Dieser Browser unterstützt die Spracheingabe nicht."); return; }
+    speechSession.current = session;
+    setSpeechStarting(true);
+    try { session.start(); }
+    catch { stopDictation(); setError("Die Spracherkennung konnte nicht gestartet werden."); }
+  };
+  const cancel = useCallback(() => {
+    active.current?.abort();
+    active.current = null;
+    setPending(false);
+    stopDictation();
+    Speech.stop();
+  }, [stopDictation]);
   const begin = useCallback(() => {
     cancel();
     setError("");
@@ -43,6 +96,7 @@ export default function ConversationScreen() {
   const send = useCallback(async () => {
     const trimmed = input.trim().slice(0, 1000);
     if (!trimmed || pending || !loaded) return;
+    stopDictation();
     const next = [...messages, makeMessage("learner", trimmed)];
     setMessages(next);
     setInput("");
@@ -58,7 +112,7 @@ export default function ConversationScreen() {
     } finally {
       if (active.current === controller) { active.current = null; setPending(false); }
     }
-  }, [input, pending, loaded, messages, language, level, topic]);
+  }, [input, pending, loaded, messages, language, level, topic, stopDictation]);
   const change = (type: "language" | "level" | "topic", value: string) => {
     cancel(); setMessages([]); setError("");
     if (type === "language") setLanguage(value as LanguageCode);
@@ -97,11 +151,38 @@ export default function ConversationScreen() {
       </View>)}
       {pending && <ActivityIndicator />}
       {!!error && <Text accessibilityRole="alert" style={{ color: colors.rose }}>{error}</Text>}
-      <Text style={{ color: colors.textMuted, fontSize: 12 }}>Mikrofon und Spracherkennung sind noch nicht aktiviert. Es wird nichts aufgenommen oder übertragen. Verlauf bleibt lokal gespeichert.</Text>
+      <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+        {Platform.OS === "web"
+          ? "Optionales Web-Diktat: Nur mit Einwilligung. Je nach Browser wird Audio an dessen Spracherkennungsdienst übertragen. Der erkannte Text wird nicht automatisch gesendet."
+          : "Native Spracherkennung ist noch nicht integriert. Es werden keine Mikrofonaufnahmen gemacht oder übertragen."}
+        {" "}Gesprächsverlauf bleibt lokal gespeichert.
+      </Text>
+      {speechConsentVisible && <View style={[styles.consent, { backgroundColor: colors.surface, borderColor: colors.sky }]}>
+        <Text style={{ color: colors.text, fontWeight: "700" }}>Web-Spracherkennung erlauben?</Text>
+        <Text style={{ color: colors.text }}>
+          Nach deiner Zustimmung kann der Browser das Mikrofon öffnen und Audio an seinen Erkennungsdienst übertragen.
+          Das kann Internet erfordern. RED POLY sendet selbst kein Audio an einen KI-Anbieter.
+          Das Ergebnis wird nur in das Eingabefeld eingefügt, nicht automatisch gesendet.
+        </Text>
+        <View style={styles.row}>
+          <Pressable accessibilityRole="button" onPress={() => setSpeechConsentVisible(false)} style={[styles.chip, { borderColor: colors.neutral200 }]}><Text style={{ color: colors.text }}>Abbrechen</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => { setSpeechApproved(true); startDictation(); }} style={[styles.chip, { borderColor: colors.sky }]}><Text style={{ color: colors.text, fontWeight: "700" }}>Zustimmen und starten</Text></Pressable>
+        </View>
+      </View>}
     </ScrollView>
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.composer, { borderTopColor: colors.neutral200 }]}>
-        <Pressable disabled accessibilityRole="button" accessibilityLabel="Mikrofon nicht verfügbar" style={styles.mic}><Ionicons name="mic-off-outline" size={24} color={colors.textMuted} /></Pressable>
+        <Pressable disabled={!webSpeechAvailable || !loaded || !messages.length || pending}
+          onPress={() => {
+            if (speechSession.current) stopDictation();
+            else if (speechApproved) startDictation();
+            else setSpeechConsentVisible(true);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={!webSpeechAvailable ? "Spracherkennung auf dieser Plattform nicht verfügbar" : speechListening || speechStarting ? "Diktat abbrechen" : "Diktat starten"}
+          style={styles.mic}>
+          <Ionicons name={!webSpeechAvailable ? "mic-off-outline" : speechListening || speechStarting ? "stop-circle-outline" : "mic-outline"} size={24} color={speechListening ? colors.rose : colors.textMuted} />
+        </Pressable>
         <TextInput value={input} onChangeText={setInput} placeholder="Schreibe eine Antwort …" placeholderTextColor={colors.textMuted} style={[styles.input, { color: colors.text, borderColor: colors.neutral200 }]} multiline maxLength={1000} editable={messages.length > 0 && !pending} />
         <Pressable onPress={send} disabled={!input.trim() || !messages.length || pending} accessibilityRole="button" accessibilityLabel="Text senden" style={styles.mic}><Ionicons name="send" size={23} color={colors.green} /></Pressable>
       </View>
@@ -114,6 +195,7 @@ const styles = StyleSheet.create({
   notice: { padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "#888", fontSize: 13 },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, chip: { paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderRadius: 20 },
   action: { padding: 14, borderRadius: 14, alignItems: "center" }, actionText: { color: "#102014", fontWeight: "800" },
+  consent: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 10 },
   bubble: { maxWidth: "88%", padding: 14, borderRadius: 16, gap: 8 }, listen: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 7 },
   composer: { flexDirection: "row", alignItems: "center", padding: 8, borderTopWidth: 1, gap: 8 },
   input: { flex: 1, minHeight: 42, maxHeight: 120, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }, mic: { padding: 8 },
