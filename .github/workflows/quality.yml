@@ -35,6 +35,10 @@ jobs:
         run: bunx eslint src/components/red-poly-ui.tsx --max-warnings=0
       - name: Unit and structure tests
         run: node --test tests/*.test.cjs
+      - name: Expo web bundle smoke test
+        env:
+          EXPO_NO_TELEMETRY: "1"
+        run: bunx expo export --platform web --output-dir .ci-web-build
       - name: PR diff whitespace check
         if: github.event_name == 'pull_request'
         run: git diff --check "${{ github.event.pull_request.base.sha }}" HEAD
