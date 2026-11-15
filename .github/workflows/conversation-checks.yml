@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "src/features/conversation/**"
+      - "src/app/conversation.tsx"
+      - "src/app/(tabs)/practice.tsx"
       - "tests/conversation-engine.test.mjs"
       - ".github/workflows/conversation-checks.yml"
   workflow_dispatch:
@@ -14,7 +16,7 @@ permissions:
 jobs:
   conversation:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,3 +24,8 @@ jobs:
           node-version: "22"
       - name: Run offline conversation engine tests
         run: node --experimental-strip-types --test tests/conversation-engine.test.mjs
+      - uses: oven-sh/setup-bun@v2
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Check TypeScript
+        run: bunx tsc --noEmit
