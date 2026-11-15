@@ -31,3 +31,11 @@ jobs:
           node-version: '22'
       - name: Run core data regression suite
         run: npm run test:core
+      - name: Setup Bun for Expo TypeScript
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+      - name: Install locked Expo dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript typecheck
+        run: bunx tsc --noEmit
