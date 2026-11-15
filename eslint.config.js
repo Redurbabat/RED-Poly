@@ -2,7 +2,7 @@
 const expoConfig = require("eslint-config-expo/flat");
 
 module.exports = [
-  expoConfig,
+  ...(Array.isArray(expoConfig) ? expoConfig : [expoConfig]),
   {
     ignores: [
       "integrations/**",
