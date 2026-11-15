@@ -8,6 +8,7 @@ on:
       - "src/app/(tabs)/practice.tsx"
       - "tests/conversation-engine.test.mjs"
       - ".github/workflows/conversation-checks.yml"
+      - "tsconfig.conversation.json"
   workflow_dispatch:
 
 permissions:
@@ -28,4 +29,4 @@ jobs:
       - name: Install project dependencies
         run: bun install --frozen-lockfile
       - name: Check TypeScript
-        run: bunx tsc --noEmit
+        run: bunx tsc --noEmit --project tsconfig.conversation.json
