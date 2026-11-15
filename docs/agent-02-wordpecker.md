@@ -11,6 +11,7 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - Offline flashcard reveal and remembered/again grading.
 - Offline multiple-choice translation quiz using up to four unique translation options; correct/incorrect responses persist through the existing vocabulary SRS adapter.
 - Offline writing practice: free-text translation, case/whitespace-insensitive but accent-sensitive matching, expected-answer feedback, saved SRS grading.
+- Offline word-bank exercise for two-or-more-token translations: order words by tapping, remove selected tokens, show feedback, grade via the same vocabulary SRS adapter. Repeated words are supported through token IDs.
 - Due-word selection and review scheduling **using the existing** `src/lib/srs.ts` SM-2-like algorithm.
 - Per-word correct/wrong counts; a separate local storage key `red-poly:vocabulary-v1`.
 - Link from the existing Practice tab; no second Expo app, tab bar or login.
@@ -23,13 +24,14 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - `red-poly:vocabulary-v1` is deliberately **not** fed into `progress-v2`; until migration exists, flashcard progress and course XP are separate. Do not claim unified progress.
 
 ## Outstanding
-- Word-bank training, cross-feature learning statistics, AI suggestions.
+- Cross-feature learning statistics, optional AI suggestions.
 - Backup currently uses select-and-copy/paste of JSON in a text field; native share-sheet/file picker is not implemented.
 - Import skips colliding list IDs rather than overwriting them; import reports skipped lists. A future conflict-resolution/migration policy is needed.
 - WordPecker template packs require content/license review before copying.
 - More robust handling of malformed persisted data and multi-device sync.
 - Multiple-choice helper: 6 isolated Node tests passed on an equivalent extracted helper (missing ID, unique labels, correct/incorrect answers, insufficient distractors, empty word, two-choice fallback). This is **not** a repository build or device test.
 - Writing helper: 8 isolated Node assertions passed after TypeScript compilation (case, whitespace, accents, Unicode normalization, wrong answer, blank answer, newline, punctuation). No UI/device tests performed.
+- Word-bank source inspection confirms question generator, unique token IDs, full-length and duplicate-answer checks, saved SRS callback, entry button and feedback UI. No executable word-bank tests or device tests performed in this turn.
 - Automated repository test harness, full TypeScript build, app launch, iOS/Android/Web device checks, restart and offline tests are **not run** in this environment. GitHub network access is unavailable from the local shell.
 - Independent security/licensing review of original Lingo Lessons content and audio remains a release blocker.
 
@@ -48,3 +50,6 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 
 11. In Writing practice, check uppercase and extra whitespace are accepted, missing accents and wrong words rejected, with SRS counters changed once per submission.
 12. Check empty answers cannot be submitted, feedback prevents duplicate grading, and Finish writing returns to the list.
+
+13. In Word bank, use a two-word translation, select tokens out of order, check wrong feedback, then select in order and check correct feedback.
+14. Verify repeated words use unique token IDs, prevent duplicate selections, incomplete answers cannot submit, and single-word translations are excluded.
