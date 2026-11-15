@@ -3,12 +3,15 @@ import type { LanguageCode, Level, Message, Topic } from "./engine";
 
 /** Separate from the existing progress-v2 store: no migrations or XP side effects. */
 const KEY = "red-poly-conversation-v1";
+// Serialize writes so a slower earlier save cannot overwrite a newer session.
+let writeQueue: Promise<void> = Promise.resolve();
 export type SavedConversation = { language: LanguageCode; level: Level; topic: Topic; messages: Message[] };
 const languages = new Set(["en", "de", "fr", "es", "it", "pt"]);
 const topics = new Set(["introductions", "travel", "food", "work"]);
 const levels = new Set(["A1", "A2", "B1", "B2", "C1"]);
 export async function loadConversation(): Promise<SavedConversation | null> {
   try {
+    await writeQueue.catch(() => undefined);
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return null;
     const value: unknown = JSON.parse(raw);
@@ -20,5 +23,8 @@ export async function loadConversation(): Promise<SavedConversation | null> {
   } catch { return null; }
 }
 export async function saveConversation(value: SavedConversation): Promise<void> {
-  await AsyncStorage.setItem(KEY, JSON.stringify({ ...value, messages: value.messages.slice(-100) }));
+  const serialized = JSON.stringify({ ...value, messages: value.messages.slice(-100) });
+  const nextWrite = writeQueue.catch(() => undefined).then(() => AsyncStorage.setItem(KEY, serialized));
+  writeQueue = nextWrite;
+  await nextWrite;
 }
