@@ -11,7 +11,7 @@
 - Dialog: native `Modal`, Android-Back über `onRequestClose`; tatsächliche VoiceOver-Fokusführung noch manuell prüfen.
 
 ## Automatische Qualität
-- `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie Branch-Push und manuell). Bun-Lockfile-Installation, TypeScript, vorhandenes ESLint falls konfiguriert, Node Unit- und Strukturtests, PR-Diffcheck.
+- `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie Branch-Push und manuell). Bun-Lockfile-Installation, TypeScript, echte ESLint-Prüfung der UI-Bibliothek, Node Unit- und Strukturtests, Expo-Web-Export und PR-Diffcheck.
 - **ESLint-Startumfang:** Root `eslint.config.js` nutzt das offizielle `eslint-config-expo/flat` 56.0.4. GitHub Actions installiert `eslint@9.39.1` + `eslint-config-expo@56.0.4` mit `bun add --no-save` **nach** dem unveränderten Frozen-Lockfile-Install. Somit wird der bestehende App-Lockfile nicht geändert. Die Lint-Prüfung ist auf die neue gemeinsame UI-Bibliothek begrenzt, da die importierten Referenzprojekte andere Toolchains besitzen. Für lokale Ausführung: `bun install --frozen-lockfile && bun add --no-save --ignore-scripts eslint@9.39.1 eslint-config-expo@56.0.4 && bunx eslint src/components/red-poly-ui.tsx --max-warnings=0`. Es handelt sich um eine echte ESLint-Prüfung, nicht um einen Skip. Die vollständige Root-App-Lintabdeckung und das dauerhafte Einpflegen der Lint-Pakete ins Bun-Lockfile bleiben offen.
 - Test: `node --test tests/*.test.cjs`; SRS-Logik wird aus der realen TypeScript-Datei transpiliert und geprüft, ausserdem Persistenzschlüssel und UI-Exports.
 - Kein Release, keine Signierung, keine Cloud-Kosten.
@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | iPhone | Expo + Router + RN, native Device-Prüfung ausstehend | Nein |
 | Android | Expo + Router + RN, Emulator ausstehend | Nein |
-| Web | React Native Web, Browser-Test ausstehend | Nein |
+| Web | React Native Web, Expo-Export in CI erfolgreich; Browser- und UI-Test ausstehend | **Export erfolgreich, Browser nein** |
 | Windows | spätere Desktop-Strategie; keine zweite App | Nein |
 | macOS | spätere Desktop-Strategie; keine zweite App | Nein |
 
@@ -29,3 +29,8 @@
 
 ## Vor manueller Abnahme
 Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays, Dynamic Type, VoiceOver-Fokus bei Modalöffnung, Android TalkBack, Reduce Motion, Reduce Transparency, Farbschema, Touch-Targets, SRS/XP/Offline-Neustart.
+
+## Bestätigte CI-Nachweise (15.11.2026)
+- Run [43728283309](https://github.com/Redurbabat/RED-Poly/actions/runs/43728283309), Commit `69139a0`: Frozen-Lockfile-Installation, TypeScript, Expo-ESLint für neue UI-Komponenten sowie 4 von 4 Node-Tests erfolgreich.
+- Run [43728412343](https://github.com/Redurbabat/RED-Poly/actions/runs/43728412343), Commit `46300f2`: dieselben Prüfungen erfolgreich, zusätzlich `bunx expo export --platform web --output-dir .ci-web-build` erfolgreich. Metro hat 2435 Web-Module und 12 statische Routen gebündelt.
+- **Nicht nachgewiesen:** Browser-Interaktion, Offline-Web-Verhalten, iOS-/Android-Simulator, reale Geräte, Windows/macOS-Native-Pakete, IPA-Signierung und vollständiges Root-ESLint.
