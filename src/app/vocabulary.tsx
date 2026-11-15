@@ -7,6 +7,7 @@ import { exportVocabularyJson, mergeVocabularyJson } from "@/features/vocabulary
 import { checkMultipleChoiceAnswer, makeMultipleChoiceQuestion } from "@/features/vocabulary/multiple-choice";
 import { checkWritingAnswer } from "@/features/vocabulary/writing";
 import { checkWordBankAnswer, makeWordBankQuestion } from "@/features/vocabulary/word-bank";
+import { vocabularyStatistics } from "@/features/vocabulary/statistics";
 import { makeThemedStyles } from "@/lib/theme";
 import {
   applyVocabularyReview, dueVocabularyWords, emptyVocabulary, loadVocabulary,
@@ -68,6 +69,8 @@ export default function VocabularyScreen() {
 
   const lists = data.lists.filter((list) => list.courseId === courseId);
   const selected = lists.find((list) => list.id === selectedId) ?? null;
+  const courseStats = vocabularyStatistics(lists);
+  const listStats = selected ? vocabularyStatistics([selected]) : null;
   const due = selected ? dueVocabularyWords(selected) : [];
   const reviewWord = selected?.words.find((w) => w.id === reviewId) ?? null;
   const writingWord = selected?.words.find((w) => w.id === writingId) ?? null;
@@ -258,6 +261,14 @@ export default function VocabularyScreen() {
                 <Action label="Close" onPress={() => { setTransferMode("none"); setTransferText(""); }} />
               </View>
             ) : null}
+            <Text style={styles.subheading}>Learning progress</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Your vocabulary · {courseId}</Text>
+              <Text style={styles.muted}>{courseStats.words} words in {courseStats.lists} lists · {courseStats.practicedWords} practised</Text>
+              <Text style={styles.muted}>Answer accuracy: {courseStats.accuracyPercent === null ? "No attempts yet" : `${courseStats.accuracyPercent}% (${courseStats.correct}/${courseStats.attempts})`}</Text>
+              <Text style={styles.muted}>Due now: {courseStats.dueNow} · Scheduled: {courseStats.scheduled}</Text>
+              <Text style={styles.muted}>Mastered: {courseStats.mastered} (3 successful reviews in a row, not currently due)</Text>
+            </View>
             <Text style={styles.subheading}>Your lists ({lists.length})</Text>
             {lists.length === 0 ? <Text style={styles.muted}>No lists yet for this course. Create one to start learning offline.</Text> : null}
             {lists.map((list) => (
@@ -272,6 +283,14 @@ export default function VocabularyScreen() {
           <>
             <Text style={styles.subheading}>{selected.title}</Text>
             <Text style={styles.muted}>{selected.category || "Personal list"} · {selected.words.length} words · {due.length} due now</Text>
+            {listStats ? (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>List progress</Text>
+                <Text style={styles.muted}>Practised: {listStats.practicedWords}/{listStats.words} words</Text>
+                <Text style={styles.muted}>Accuracy: {listStats.accuracyPercent === null ? "No attempts yet" : `${listStats.accuracyPercent}% (${listStats.correct}/${listStats.attempts})`}</Text>
+                <Text style={styles.muted}>Due: {listStats.dueNow} · Scheduled: {listStats.scheduled} · Mastered: {listStats.mastered}</Text>
+              </View>
+            ) : null}
             <Action label={due.length ? `Review flashcards (${due.length})` : "No reviews due"} onPress={startReview} disabled={busy || due.length === 0} />
             <Action label={quizEligible ? "Multiple choice" : "Multiple choice (requires two distinct translations)"} onPress={startQuiz} disabled={busy || !quizEligible} />
             <Action label={due.length ? "Writing practice" : "Writing practice (no words due)"} onPress={startWriting} disabled={busy || due.length === 0} />
