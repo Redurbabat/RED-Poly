@@ -17,7 +17,7 @@ Implementierte Dateien:
 - Zustand/AsyncStorage **bleibt** `progress-v2`; Schema `version: 1`.
 - Die bisherige Version ohne Versionsangabe wird als Zustand-Version **0** gelesen. `migrateProgressData(existing, 0)` unterstützt sowohl flache v1-artige Legacy-Daten als auch kursbezogene Daten.
 - Alle bisherigen XP-, Lektions-, Serien-, Tagesaktivitäts- und SRS-Werte werden übernommen. Neue Felder: `vocabularyLists: []`, `languagePreferences: { uiLanguage: "en", nativeLanguage: "en" }`. Dies sind initiale Einstellungen, keine Änderung der vorhandenen Kursinhalte.
-- Für eine unbekannte Zukunftsversion oder inkonsistente Datensätze wird abgebrochen, statt eine leere Struktur über die alten Bytes zu schreiben. Fehler müssen in einer UI separat angezeigt werden; **kein automatisches Reset**.
+- Für eine unbekannte Zukunftsversion oder inkonsistente Datensätze wird abgebrochen, statt eine leere Struktur über die alten Bytes zu schreiben. **Version-1-Datensätze müssen sämtliche Pflichtfelder enthalten**; nur alte Version-0-Daten erhalten Migrationsstandardwerte. Fehler müssen in einer UI separat angezeigt werden; **kein automatisches Reset**.
 - `courseId` bleibt das bestehende Sprachpaar, z. B. `es-en`. `targetCode` und `nativeCode` im Wortlistenobjekt bezeichnen Lern- und Quellsprache; `uiLanguage` ist unabhängig davon. Kurmancî/Sorani müssen getrennte Sprachcodes/Inhalte bekommen.
 
 ## Agent 02 — Vokabellisten / SRS
@@ -69,7 +69,7 @@ await restoreProgressBackup(backupJSON);
 ```
 
 - Format `{ format: "red-poly-progress", version: 1, exportedAt, state }`; automatische Wiederherstellung beim Starten ist **nicht** vorgesehen.
-- Der Restore prüft den Inhalt vor dem Schreiben, speichert ursprüngliche Bytes als `progress-v2-restore-checkpoint`, verifiziert diese und versucht bei Storage-Fehlern einen Rollback. Danach wird Zustand neu hydratisiert. Das Checkpoint bleibt bis zur bewussten Nutzerentscheidung erhalten.
+- Der Restore prüft den Inhalt vor dem Schreiben, speichert ursprüngliche Bytes als `progress-v2-restore-checkpoint`, verifiziert diese und versucht bei Storage-Fehlern einen Rollback. Danach wird Zustand neu hydratisiert. **Bei erneutem Restore wird ein bestehender Checkpoint nicht überschrieben.** Das Checkpoint bleibt bis zur bewussten Nutzerentscheidung erhalten.
 - **Einschränkung:** AsyncStorage ist nicht transaktional. Schreibzugriffe während Restore müssen durch die künftige UI verhindert werden. Im Fall eines schwerwiegenden Geräte-/Speicherfehlers muss der Checkpoint gesondert zur manuellen Rettung zugänglich gemacht werden. Kein automatisches Überschreiben eines Checkpoints im Fehlerfall.
 - Kein Cloud-Upload und keine externe Bibliothek erforderlich. Die App hat **noch keine sichtbare Backup-/Restore-Oberfläche**.
 
@@ -80,7 +80,7 @@ npm run test:core
 # äquivalent: node --test tests/progress-data.test.mjs
 ```
 
-Neun Testfälle prüfen u. a. v0-Legacy, Kurswechsel, Daten-/XP-/SRS-Erhalt, idempotente Migration, Backup-Roundtrip, fehlerhafte Backups, Checkpoint, Rücknahme bei Schreibfehler und Wiederholungsschlüssel. Bei der Erstellung wurden diese Testkörper mit dem GitHub-Quelltext in V8 ausgeführt (**9/9 bestanden**). **Node-Test-Runner, Expo-Typecheck, CI, iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Zwölf Testfälle prüfen u. a. v0-Legacy, Kurswechsel, Daten-/XP-/SRS-Erhalt, idempotente Migration, Backup-Roundtrip, fehlerhafte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rücknahme bei Schreibfehler und Wiederholungsschlüssel. Die Testkörper wurden mit dem Branch-Quelltext in V8 ausgeführt (**12/12 bestanden**). Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner bereits erfolgreich ausgeführt. Er prüft zusätzlich die Expo-TypeScript-Typen mit gesperrten Bun-Abhängigkeiten. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, UI zum Export/Restore mit Schreibsperre, vollständiger Typecheck mit Projektabhängigkeiten und Endgerät-Migrationstest gegen eine sichere Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git).
 
