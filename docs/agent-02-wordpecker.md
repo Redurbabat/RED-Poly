@@ -14,6 +14,7 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - Offline word-bank exercise for two-or-more-token translations: order words by tapping, remove selected tokens, show feedback, grade via the same vocabulary SRS adapter. Repeated words are supported through token IDs.
 - Due-word selection and review scheduling **using the existing** `src/lib/srs.ts` SM-2-like algorithm.
 - Per-word correct/wrong counts; a separate local storage key `red-poly:vocabulary-v1`.
+- Per-course and per-list statistics: total words, practised words, total correct/wrong attempts, answer accuracy, due/scheduled reviews and mastered words. Mastered is explicitly defined as SRS streak >= 3 and a future due date. New/unreviewed words count as due. There is no XP integration or historical trend graph.
 - Link from the existing Practice tab; no second Expo app, tab bar or login.
 
 ## Temporary data adapter — Agent 01 coordination required
@@ -24,7 +25,7 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - `red-poly:vocabulary-v1` is deliberately **not** fed into `progress-v2`; until migration exists, flashcard progress and course XP are separate. Do not claim unified progress.
 
 ## Outstanding
-- Cross-feature learning statistics, optional AI suggestions.
+- Cross-feature/unified learning statistics and optional AI suggestions. Local vocabulary-only statistics are implemented.
 - Backup currently uses select-and-copy/paste of JSON in a text field; native share-sheet/file picker is not implemented.
 - Import skips colliding list IDs rather than overwriting them; import reports skipped lists. A future conflict-resolution/migration policy is needed.
 - WordPecker template packs require content/license review before copying.
@@ -32,6 +33,7 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - Multiple-choice helper: 6 isolated Node tests passed on an equivalent extracted helper (missing ID, unique labels, correct/incorrect answers, insufficient distractors, empty word, two-choice fallback). This is **not** a repository build or device test.
 - Writing helper: 8 isolated Node assertions passed after TypeScript compilation (case, whitespace, accents, Unicode normalization, wrong answer, blank answer, newline, punctuation). No UI/device tests performed.
 - Word-bank source inspection confirms question generator, unique token IDs, full-length and duplicate-answer checks, saved SRS callback, entry button and feedback UI. No executable word-bank tests or device tests performed in this turn.
+- Vocabulary-only statistics module was compiled with TypeScript 5.8.3 (strict, target ES2020) against a local structural type stub and 16 Node assertions passed for empty lists, counts, accuracy, due/scheduled boundaries, mastery, and invalid counters. This is an isolated module test, **not** a root-app typecheck or integration/device test.
 - Automated repository test harness, full TypeScript build, app launch, iOS/Android/Web device checks, restart and offline tests are **not run** in this environment. GitHub network access is unavailable from the local shell.
 - Independent security/licensing review of original Lingo Lessons content and audio remains a release blocker.
 
@@ -53,3 +55,6 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 
 13. In Word bank, use a two-word translation, select tokens out of order, check wrong feedback, then select in order and check correct feedback.
 14. Verify repeated words use unique token IDs, prevent duplicate selections, incomplete answers cannot submit, and single-word translations are excluded.
+
+15. Verify course summary only includes lists with the active course ID; verify list summary reflects a new saved review, including percent accuracy and scheduled counts.
+16. Restart with offline mode and verify numbers are reconstructed from persisted vocabulary words; ensure standard course XP/streak is not represented as part of vocabulary statistics.
