@@ -143,3 +143,45 @@ test("shared due review combines existing course and custom-word keys", () => {
   assert.deepEqual(dueReviewKeys(course, 2000), ["hola"]);
   assert.deepEqual(dueReviewKeys(course, 6000), ["hola", custom]);
 });
+
+
+test("version 1 backups must contain every required state field", async () => {
+  const valid = initial();
+  const raw = JSON.parse(createProgressBackup(valid));
+  for (const missing of ["courses", "streak", "vocabularyLists", "activeDays", "languagePreferences"]) {
+    const damaged = JSON.parse(JSON.stringify(raw));
+    delete damaged.state[missing];
+    assert.throws(
+      () => parseProgressBackup(JSON.stringify(damaged)),
+      /Invalid RED POLY/,
+      "should reject missing " + missing
+    );
+  }
+});
+
+test("v0 migration rejects invalid courses rather than silently replacing them", () => {
+  assert.throws(
+    () => migrateProgressData({ courses: null, xp: 80 }, 0),
+    /Invalid RED POLY/
+  );
+  assert.throws(
+    () => migrateProgressData({ courses: "broken", xp: 80 }, 0),
+    /Invalid RED POLY/
+  );
+});
+
+test("repeated imports preserve the first original-data checkpoint", async () => {
+  const map = new Map([[PROGRESS_STORAGE_KEY, "original state"]]);
+  const storage = {
+    async getItem(k) { return map.get(k) ?? null; },
+    async setItem(k, v) { map.set(k, v); },
+    async removeItem(k) { map.delete(k); },
+  };
+  const first = initial();
+  const second = initial();
+  second.courses["es-en"].xp = 999;
+  await restoreProgressBackupToStorage(createProgressBackup(first), storage);
+  await restoreProgressBackupToStorage(createProgressBackup(second), storage);
+  assert.equal(map.get(RESTORE_CHECKPOINT_KEY), "original state");
+  assert.equal(JSON.parse(map.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+});
