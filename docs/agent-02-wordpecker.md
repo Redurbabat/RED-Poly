@@ -34,7 +34,12 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 - Writing helper: 8 isolated Node assertions passed after TypeScript compilation (case, whitespace, accents, Unicode normalization, wrong answer, blank answer, newline, punctuation). No UI/device tests performed.
 - Word-bank source inspection confirms question generator, unique token IDs, full-length and duplicate-answer checks, saved SRS callback, entry button and feedback UI. No executable word-bank tests or device tests performed in this turn.
 - Vocabulary-only statistics module was compiled with TypeScript 5.8.3 (strict, target ES2020) against a local structural type stub and 16 Node assertions passed for empty lists, counts, accuracy, due/scheduled boundaries, mastery, and invalid counters. This is an isolated module test, **not** a root-app typecheck or integration/device test.
-- Automated repository test harness, full TypeScript build, app launch, iOS/Android/Web device checks, restart and offline tests are **not run** in this environment. GitHub network access is unavailable from the local shell.
+- Node test suite added at `tests/vocabulary.test.cjs`, using Node's built-in test runner and the project's existing `typescript` devDependency (no test library added). Run after installing dependencies: `node --test tests/vocabulary.test.cjs`.
+- **13/13 runtime tests passed locally** against copies of the feature source modules, covering writing, word bank, multiple choice, summary statistics, AsyncStorage read/write (mocked), SRS, JSON import/export, duplicate protection and corrupt-data rejection.
+- **Isolated TypeScript typecheck passed locally** for the vocabulary helpers and SRS with a local AsyncStorage declaration stub (global TypeScript 5.8.3, strict mode). This is not a full root-app typecheck and does not validate React Native UI.
+- The suite uses a memory-backed fake for AsyncStorage; device storage, offline mode and restart behavior still require manual or integration verification.
+- A regression was found in `cleanVocabulary`: malformed numerical counters or SRS review properties could silently pass. It now rejects invalid counters and review schedules. Missing legacy counters still default to zero.
+- Full repository dependency installation, complete root-app TypeScript build, device/app startup, iOS/Android/Web and real offline/restart testing: **NOT RUN** in this environment. Local shell cannot clone GitHub; no CI job was triggered.
 - Independent security/licensing review of original Lingo Lessons content and audio remains a release blocker.
 
 ## Manual acceptance checklist (not yet executed)
@@ -58,3 +63,9 @@ Source reviewed: `integrations/wordpecker/frontend/src/types/index.ts`, `fronten
 
 15. Verify course summary only includes lists with the active course ID; verify list summary reflects a new saved review, including percent accuracy and scheduled counts.
 16. Restart with offline mode and verify numbers are reconstructed from persisted vocabulary words; ensure standard course XP/streak is not represented as part of vocabulary statistics.
+
+## Regression test execution
+- Install the repository's dependencies using its normal package manager.
+- Run `node --test tests/vocabulary.test.cjs` from the repository root.
+- These tests exercise the **real source module files** and replace only the AsyncStorage implementation with an in-memory fake; they do not require Expo, a simulator, or network.
+- Do not merge solely on these results: run a full app typecheck and the manual acceptance checklist first.
