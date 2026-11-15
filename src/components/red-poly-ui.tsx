@@ -106,7 +106,7 @@ export function PolyTextField({
       <TextInput
         {...inputProps}
         accessibilityLabel={label}
-        aria-invalid={!!error}
+        accessibilityInvalid={!!error}
         placeholderTextColor={c.textMuted}
         style={[styles.input, { backgroundColor: c.surface, borderColor: error ? c.rose : c.neutral300, color: c.text }, inputProps.style]}
       />

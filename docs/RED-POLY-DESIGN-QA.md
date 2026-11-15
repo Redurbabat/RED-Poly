@@ -12,7 +12,7 @@
 
 ## Automatische Qualität
 - `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie Branch-Push und manuell). Bun-Lockfile-Installation, TypeScript, vorhandenes ESLint falls konfiguriert, Node Unit- und Strukturtests, PR-Diffcheck.
-- **Lint-Einschränkung:** `package.json` enthält `expo lint`, aber im Root-Bestand liegt keine ESLint-Konfigurationsdatei. CI meldet dies als Notice; eine korrekt eingerichtete Lint-Konfiguration ist offen. Keine automatische Paketinstallation oder Konfigurationsänderung im Lint-Job.
+- **ESLint-Startumfang:** Root `eslint.config.js` nutzt das offizielle `eslint-config-expo/flat` 56.0.4. GitHub Actions installiert `eslint@9.39.1` + `eslint-config-expo@56.0.4` mit `bun add --no-save` **nach** dem unveränderten Frozen-Lockfile-Install. Somit wird der bestehende App-Lockfile nicht geändert. Die Lint-Prüfung ist auf die neue gemeinsame UI-Bibliothek begrenzt, da die importierten Referenzprojekte andere Toolchains besitzen. Für lokale Ausführung: `bun install --frozen-lockfile && bun add --no-save --ignore-scripts eslint@9.39.1 eslint-config-expo@56.0.4 && bunx eslint src/components/red-poly-ui.tsx --max-warnings=0`. Es handelt sich um eine echte ESLint-Prüfung, nicht um einen Skip. Die vollständige Root-App-Lintabdeckung und das dauerhafte Einpflegen der Lint-Pakete ins Bun-Lockfile bleiben offen.
 - Test: `node --test tests/*.test.cjs`; SRS-Logik wird aus der realen TypeScript-Datei transpiliert und geprüft, ausserdem Persistenzschlüssel und UI-Exports.
 - Kein Release, keine Signierung, keine Cloud-Kosten.
 
