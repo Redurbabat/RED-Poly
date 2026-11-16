@@ -27,7 +27,7 @@ module.exports = [
     rules: { "react-hooks/set-state-in-effect": "off" },
   },
   {
-    files: ["src/app/lesson/[id].tsx"],
+    files: ["src/app/lesson/[[]id[]].tsx"],
     rules: {
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/refs": "off",
