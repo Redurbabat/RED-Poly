@@ -252,3 +252,34 @@ test("late XP update while checkpoint is written aborts restore without overwrit
   assert.equal(disk.get(RESTORE_CHECKPOINT_KEY), original);
   assert.deepEqual(writes, [RESTORE_CHECKPOINT_KEY]);
 });
+
+
+test("storage restore verification never rolls back over newer external XP", async () => {
+  const prior = initial();
+  const original = JSON.stringify({ version: 1, state: prior });
+  const newer = structuredClone(prior);
+  newer.courses["es-en"].xp = 999;
+  const external = JSON.stringify({ version: 1, state: newer });
+  const disk = new Map([[PROGRESS_STORAGE_KEY, original]]);
+  let progressReads = 0;
+  const storage = {
+    async getItem(k) {
+      if (k === PROGRESS_STORAGE_KEY && ++progressReads === 3) {
+        // Another writer wins after our setItem, before verification.
+        disk.set(PROGRESS_STORAGE_KEY, external);
+      }
+      return disk.get(k) ?? null;
+    },
+    async setItem(k, v) { disk.set(k, v); },
+    async removeItem(k) { disk.delete(k); },
+  };
+  const replacement = structuredClone(prior);
+  replacement.streak = 28;
+  await assert.rejects(
+    restoreProgressBackupToStorage(createProgressBackup(replacement), storage, original),
+    /rollback incomplete/
+  );
+  assert.equal(disk.get(PROGRESS_STORAGE_KEY), external);
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+  assert.equal(disk.get(RESTORE_CHECKPOINT_KEY), original);
+});
