@@ -58,3 +58,58 @@ jobs:
         run: |
           bunx expo prebuild --platform ios --no-install --clean
           node tests/conversation-ios-prebuild.test.mjs
+
+  ios-simulator:
+    name: Compile unsigned iOS Simulator app
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+      - name: Check Xcode environment
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Generate iOS project without signing
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: bunx expo prebuild --platform ios --no-install --clean
+      - name: Install CocoaPods dependencies
+        env:
+          LANG: en_US.UTF-8
+          LC_ALL: en_US.UTF-8
+        run: |
+          cd ios
+          pod install
+      - name: Compile iOS Simulator app without Apple credentials
+        env:
+          CI: "1"
+        run: |
+          xcodebuild \
+            -workspace ios/REDPOLY.xcworkspace \
+            -scheme REDPOLY \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/red-poly-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build > "$RUNNER_TEMP/red-poly-xcodebuild.log" 2>&1 || { tail -n 160 "$RUNNER_TEMP/red-poly-xcodebuild.log"; exit 1; }
+          APP="$RUNNER_TEMP/red-poly-derived/Build/Products/Debug-iphonesimulator/REDPOLY.app"
+          test -d "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "com.redurbabat.redpoly"
+          tar -czf "$RUNNER_TEMP/red-poly-ios-simulator.tar.gz" -C "$(dirname "$APP")" REDPOLY.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: red-poly-unsigned-ios-simulator
+          path: ${{ runner.temp }}/red-poly-ios-simulator.tar.gz
+          retention-days: 3
+          if-no-files-found: error

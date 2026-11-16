@@ -54,3 +54,9 @@ Speech recognition may use a remote iOS service. The RED POLY demo does not uplo
 - A changed Bundle ID creates a **separate app sandbox**. Existing Lingo data will **not** automatically migrate to RED POLY. Keep previous installations until migration is approved.
 - The current code is a **scripted offline conversation demo**; it is not a real AI tutor.
 - A genuine signed IPA, Xcode compilation on macOS and hardware microphone tests are all still **outstanding**.
+
+## GitHub Actions native simulator compilation (unsigned)
+- The existing `RED POLY Conversation Checks` workflow now runs an additional `macos-26` job, requiring Xcode and CocoaPods, to compile the actual iOS Simulator native target (`REDPOLY`).
+- The build explicitly sets `CODE_SIGNING_ALLOWED=NO`, checks `CFBundleIdentifier=com.redurbabat.redpoly` inside the generated `.app`, and uploads `red-poly-unsigned-ios-simulator` as a short-lived GitHub Actions artifact when successful.
+- This file is a **simulator app archive, not a physical-device IPA**. It does not grant Apple distribution or sideloading rights and cannot be installed directly on an iPhone.
+- If the job fails, inspect the native compiler/CocoaPods errors in the workflow logs; do not report it as a completed Xcode build.
