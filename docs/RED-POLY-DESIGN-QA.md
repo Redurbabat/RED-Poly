@@ -69,3 +69,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Der Screenshot-Upload der CI aktiviert `include-hidden-files: true`, weil die Artefakte bewusst im isolierten Ordner `.ci-browser-artifacts/` gespeichert werden.
 
 - Chromium-Lauf [43817711980](https://github.com/Redurbabat/RED-Poly/actions/runs/43817711980) bestätigt: Onboarding, Buttons, Dialoge, Validierung und die reparierte Tab-Auswahl funktionieren. Danach zeigte er einen weiteren ARIA-Mangel: `PolyProgress` setzte nur `accessibilityValue`, React Native Web stellte aber keinen `aria-valuenow` bereit. **Korrektur:** explizite `aria-valuemin`, `aria-valuemax`, `aria-valuenow` zusätzlich zum nativen `accessibilityValue`. Der erste tatsächliche Screenshot des mobilen Testdialogs wurde im Workflow als Artefakt gespeichert.
+
+## Erweiterte Chromium-Abnahme (16.11.2026)
+- Der Chromium-End-to-End-Test prüft neu zusätzlich einen **320 × 568 px** schmalen Bildschirm gegen horizontales Überlaufen, die **Tastaturaktivierung** eines Dialogs mit Enter und die echte **Dark-Mode-Umschaltung** über die bestehenden Profileinstellungen. Keine Änderungen an Lern- oder Profile-Screens.
+- Neue separate Screenshots: `small-mobile-design-lab.png`, `dark-mobile-design-lab.png`; sie liegen mit den bestehenden Screenshots im GitHub-Actions-Artefakt. Resultate erst nach erfolgreichem Run als bestätigt markieren.
+- Das ist eine Browser-Abnahme, **keine** VoiceOver-, iOS-Simulator- oder iPhone-Hardware-Abnahme.

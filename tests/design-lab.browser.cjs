@@ -84,8 +84,44 @@ async function main() {
       fullPage: true,
     });
 
+    // Narrow-screen and keyboard regression (no mocked native devices).
+    await page.setViewportSize({ width: 320, height: 568 });
+    await page.getByText("RED POLY · Design Lab").waitFor();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    assert.ok(overflow <= 1, `320px viewport has horizontal overflow: ${overflow}px`);
+    await page.screenshot({
+      path: path.join(outputDir, "small-mobile-design-lab.png"),
+      fullPage: true,
+    });
+
+    const dialogTrigger = page.getByRole("button", { name: "Dialog öffnen" });
+    await dialogTrigger.focus();
+    await page.keyboard.press("Enter");
+    await page.getByText("Testdialog", { exact: true }).waitFor();
+    const cancelKey = page.getByRole("button", { name: "Abbrechen" });
+    await cancelKey.focus();
+    await page.keyboard.press("Enter");
+    await page.getByText("Dialog abgebrochen").waitFor();
+
+    // Change the theme through the real profile controls, not injected storage.
+    await page.getByRole("button", { name: "Zur App" }).click();
+    await page.getByRole("tab", { name: "Profile" }).click();
+    await page.getByRole("button", { name: "Dark theme" }).click();
+    await page.goto(baseURL + "/design-lab", {
+      waitUntil: "domcontentloaded",
+      timeout: 90_000,
+    });
+    await page.getByText("RED POLY · Design Lab").waitFor();
+    await page.getByText(/web · dark ·/).waitFor();
+    await page.screenshot({
+      path: path.join(outputDir, "dark-mobile-design-lab.png"),
+      fullPage: true,
+    });
+
     assert.deepEqual(exceptions, [], "browser must not raise unhandled page errors");
-    console.log("PASS: Chromium onboarding + mobile/desktop Design Lab interactions");
+    console.log("PASS: Chromium onboarding, design-lab actions, keyboard, 320px viewport, dark theme");
     console.log("Screenshots: " + outputDir);
   } finally {
     await browser.close();
