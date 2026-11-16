@@ -91,3 +91,27 @@ test("draining is only allowed during an active migration lock", async () => {
   await guard.drain();
   release();
 });
+
+
+test("a failed save cannot release the lock while another pending save is still running", async () => {
+  const guard = createProgressWriteGuard();
+  let finishSlow;
+  const slow = new Promise((resolve) => { finishSlow = resolve; });
+  const badWrite = guard.trackWrite(Promise.reject(new Error("write failed")));
+  const slowWrite = guard.trackWrite(slow);
+  let settled = false;
+  const acquisition = guard.acquire().then(
+    () => { settled = true; },
+    () => { settled = true; },
+  );
+  await assert.rejects(badWrite, /write failed/);
+  await Promise.resolve();
+  assert.equal(settled, false);
+  assert.throws(() => guard.assertUnlocked(), /edits blocked/);
+  finishSlow();
+  await slowWrite;
+  await acquisition;
+  assert.equal(settled, true);
+  guard.assertUnlocked();
+  await assert.rejects(guard.acquire(), /an earlier save failed/);
+});
