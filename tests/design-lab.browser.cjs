@@ -1,6 +1,6 @@
 /**
  * Real Chromium E2E smoke test for the development-only RED POLY Design Lab.
- * Run with a local Expo development web server at http://127.0.0.1:8081.
+ * Run with a local Expo development web server at http://localhost:8081.
  * This intentionally runs through the existing onboarding route, so no
  * production navigation or persistence behavior is bypassed.
  */
