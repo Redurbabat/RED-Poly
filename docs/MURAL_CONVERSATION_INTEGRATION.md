@@ -48,3 +48,8 @@
 ## Native configuration introspection
 - On pull requests, CI executes `expo config --type introspect --json`, then asserts the evaluated iOS `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` and the Android `RECORD_AUDIO` permission.
 - This tests actual evaluated config plugins, **not** an Xcode compile, signed IPA, Android APK, provisioning profile or a device permission popup.
+
+## Native iOS generation smoke test
+- CI performs unsigned `expo prebuild --platform ios --no-install --clean` on Ubuntu to check native project generation without CocoaPods, Xcode, credentials or IPA output.
+- The generated iOS project and Info.plist are inspected for `com.redurbabat.redpoly`, the `redpoly` URL scheme and speech/microphone permission text.
+- Success proves config generation only, **not** compilation, signing, an installable build or physical-device dictation.
