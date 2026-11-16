@@ -11,7 +11,7 @@
 - Dialog: native `Modal`, Android-Back über `onRequestClose`; tatsächliche VoiceOver-Fokusführung noch manuell prüfen.
 
 ## Automatische Qualität
-- `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie Branch-Push und manuell). Frozen Bun-Lockfile, TypeScript, gesamte Expo-App (`src`) mit ESLint-Fehlerprüfung, strengere neue UI-Primitive, Node Unit-/Strukturtests, Expo-Web-Export und PR-Diffcheck.
+- `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie manuell per Workflow-Dispatch). Frozen Bun-Lockfile, TypeScript, gesamte Expo-App (`src`) mit ESLint-Fehlerprüfung, strengere neue UI-Primitive, Node Unit-/Strukturtests, Expo-Web-/iOS-/Android-JavaScript-Export und PR-Diffcheck.
 - **ESLint-Startumfang:** Root `eslint.config.js` nutzt das offizielle `eslint-config-expo/flat` 56.0.4. GitHub Actions installiert `eslint@9.39.1` + `eslint-config-expo@56.0.4` mit `bun add --no-save` **nach** dem unveränderten Frozen-Lockfile-Install. Somit wird der bestehende App-Lockfile nicht geändert. ESLint prüft den gesamten Root-Expo-Code unter `src/` auf Fehler mit `bunx eslint src --quiet`. Für die neue UI-Bibliothek gelten zusätzlich null Warnungen (`--max-warnings=0`). Die importierten `integrations/` bleiben ausgeschlossen. Für lokale Ausführung: `bun install --frozen-lockfile && bun add --no-save --ignore-scripts eslint@9.39.1 eslint-config-expo@56.0.4 && bunx eslint src/components/red-poly-ui.tsx --max-warnings=0`. Drei bestehende React-Hooks-Fehler werden vorübergehend **nur** in `src/app/_layout.tsx` (`set-state-in-effect`) sowie `src/app/lesson/[id].tsx` (`set-state-in-effect`, `refs`) ausgenommen; alle anderen Regeln prüfen die Dateien weiterhin. Diese Ausnahmen später durch die zuständigen App-/Feature-Agenten nach Funktionstests abbauen. Warnungen im Altcode sowie das dauerhafte Einpflegen der ESLint-Pakete ins Bun-Lockfile bleiben offen.
 - Test: `node --test tests/*.test.cjs`; SRS-Logik wird aus der realen TypeScript-Datei transpiliert und geprüft, ausserdem Persistenzschlüssel und UI-Exports.
 - Kein Release, keine Signierung, keine Cloud-Kosten.
@@ -19,8 +19,8 @@
 ## Plattformmatrix / Release-Sperren
 | Plattform | Quellstand | In diesem PR getestet? |
 | --- | --- | --- |
-| iPhone | Expo + Router + RN, native Device-Prüfung ausstehend | Nein |
-| Android | Expo + Router + RN, Emulator ausstehend | Nein |
+| iPhone | Expo Router / React Native, iOS-JS-Export in CI erfolgreich; Xcode/Simulator/Hardware nicht geprüft | **JS-Bundle ja; native App nein** |
+| Android | Expo Router / React Native, Android-JS-Export in CI erfolgreich; Gradle/Emulator/Hardware nicht geprüft | **JS-Bundle ja; native App nein** |
 | Web | React Native Web, Expo-Export in CI erfolgreich; Browser- und UI-Test ausstehend | **Export erfolgreich, Browser nein** |
 | Windows | spätere Desktop-Strategie; keine zweite App | Nein |
 | macOS | spätere Desktop-Strategie; keine zweite App | Nein |
@@ -39,3 +39,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Voller Scan `bunx eslint src --quiet` in Run [43812228221](https://github.com/Redurbabat/RED-Poly/actions/runs/43812228221) fand genau 3 Fehler: `src/app/_layout.tsx:18` (State-Update im Effect), `src/app/lesson/[id].tsx:228` (dito), `src/app/lesson/[id].tsx:274` (Ref-Zugriff während Render).
 - Ausnahmen sind **datei- und regelspezifisch**, keine globalen Deaktivierungen. Keine der betreffenden App-/Lern-Dateien wird hier geändert. Die Featureverantwortlichen müssen die Ursachen korrigieren, bevor diese Ausnahmen entfernt werden.
 - Der neue native Glas-Code ist lediglich compile-/bundle-geprüft; tatsächliches Aussehen und Accessibility auf iOS 26 bleiben **NICHT GETESTET**.
+
+## Multi-Plattform-Bundle-Nachweis (16.11.2026)
+- [Run 43812894282](https://github.com/Redurbabat/RED-Poly/actions/runs/43812894282), Commit `58a7e5e`, **alle Schritte bestanden**: Frozen Bun-Lockfile, TypeScript, ESLint gesamtes `src/` (mit zwei dokumentierten Datei-/Regelausnahmen), ESLint UI-Bibliothek strikt, **6/6** Node-Tests, Expo JS Exports für **Web, iOS und Android**, PR-Diffcheck.
+- `bunx expo export --platform ios --output-dir .ci-ios-bundle` und `bunx expo export --platform android --output-dir .ci-android-bundle` sind **nur Metro/JS-Bundle-Smoke-Tests**, keine IPA/APK/Simulator-/Geräteprüfung und keine Validierung nativer GlassView-Darstellung.
+- Künftige CI nur pro Pull Request (plus manuelle Ausführung), um doppelte Jobs bei Branch-Push und PR zu vermeiden.

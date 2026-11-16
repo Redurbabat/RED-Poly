@@ -2,8 +2,6 @@ name: RED POLY Quality
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [agent/04-design-qa]
   workflow_dispatch:
 
 permissions:
