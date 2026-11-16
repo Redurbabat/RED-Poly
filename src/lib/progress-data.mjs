@@ -201,8 +201,24 @@ export async function restoreProgressBackupToStorage(serialized, storage, expect
     await storage.setItem(PROGRESS_STORAGE_KEY, newValue);
     assert(await storage.getItem(PROGRESS_STORAGE_KEY) === newValue, "restore verification");
   } catch (error) {
+    // A write may have completed, but verification can see a different
+    // valid snapshot from an unexpected external writer. Never overwrite it
+    // with an older checkpoint during failure recovery. A partially written
+    // or unparsable value may still be rolled back to the original bytes.
+    const observed = await storage.getItem(PROGRESS_STORAGE_KEY);
+    if (observed !== original && observed !== newValue) {
+      let anotherSavedProgress = false;
+      try {
+        const candidate = JSON.parse(observed);
+        anotherSavedProgress = object(candidate) && object(candidate.state);
+      } catch { /* The write left incomplete/corrupt bytes; rollback is safe. */ }
+      assert(!anotherSavedProgress,
+        "restore failed and rollback incomplete; another progress snapshot was written");
+    }
     if (original === null) await storage.removeItem(PROGRESS_STORAGE_KEY);
     else await storage.setItem(PROGRESS_STORAGE_KEY, original);
+    assert(await storage.getItem(PROGRESS_STORAGE_KEY) === original,
+      "restore rollback verification");
     throw error;
   }
   return nextState;
