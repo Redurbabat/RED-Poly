@@ -148,11 +148,8 @@ async function main() {
     await page.getByText("Das Backup enthält kein gültiges JSON.").waitFor();
     await page.getByText("Test-Wiederherstellungen: 0").waitFor();
 
-    // The real data core also rejects oversized snapshots, so UI must stop early.
-    await incomingField.fill("x".repeat(8_000_001));
-    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
-    await page.getByText("Backup ist zu gross (maximal 8 Millionen Zeichen).").waitFor();
-    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+    // The 8M-character boundary is exercised by the fast pure Node test;
+    // avoid dispatching an 8 MB TextInput event in every browser CI run.
 
     await incomingField.fill(exported);
     await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
