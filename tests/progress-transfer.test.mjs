@@ -8,6 +8,7 @@ import {
 import { createProgressWriteGuard } from "../src/lib/progress-write-guard.mjs";
 import {
   exportVerifiedProgressBackup, restoreVerifiedProgressBackup,
+  importVerifiedWordPeckerVocabulary,
 } from "../src/lib/progress-transfer.mjs";
 
 const initial = () => migrateProgressData({
@@ -173,5 +174,112 @@ test("late disk mutation aborts restore at the final commit fence without clobbe
     createProgressBackup(initial()), ctx.options), /progress changed during import/);
   assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
   assert.equal(ctx.writes.length, 0);
+  ctx.guard.assertUnlocked();
+});
+
+function seedWordPecker(ctx) {
+  const key = "red-poly:vocabulary-v1";
+  const serialized = JSON.stringify({
+    version: 1,
+    lists: [{
+      id: "trip", courseId: "es-en", title: "Travel", category: "Trips",
+      words: [{
+        id: "hello", value: "hola", translation: "hello",
+        correct: 3, wrong: 1, updatedAt: 500,
+        review: { interval: 2, ease: 2.5, dueAt: 9000, streak: 1 },
+      }],
+    }],
+  });
+  ctx.disk.set(key, serialized);
+  return { key, serialized };
+}
+
+test("WordPecker device import verifies disk, hydrated words and original XP", async () => {
+  const ctx = device();
+  const { key, serialized } = seedWordPecker(ctx);
+  const oldRehydrate = ctx.options.rehydrate;
+  ctx.options.rehydrate = async () => {
+    assert.throws(() => ctx.guard.assertUnlocked(), /edits blocked/);
+    await oldRehydrate();
+  };
+  assert.deepEqual(await importVerifiedWordPeckerVocabulary(ctx.options),
+    { listsAdded: 1, wordsAdded: 1 });
+  assert.equal(ctx.disk.get(key), serialized);
+  assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
+  assert.equal(ctx.live.courses["es-en"].xp, 145);
+  assert.equal(ctx.live.vocabularyLists[0].words[0].target, "hola");
+  assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.vocabularyLists.length, 1);
+  ctx.guard.assertUnlocked();
+  assert.deepEqual(await importVerifiedWordPeckerVocabulary(ctx.options),
+    { listsAdded: 0, wordsAdded: 0 });
+});
+
+test("WordPecker import rolls back original progress after failed rehydration", async () => {
+  const ctx = device();
+  const { key, serialized } = seedWordPecker(ctx);
+  const hydrate = ctx.options.rehydrate;
+  let attempts = 0;
+  ctx.options.rehydrate = async () => {
+    if (++attempts === 1) throw new Error("offline hydration failed");
+    await hydrate();
+  };
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /offline hydration failed/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
+  assert.equal(ctx.disk.get(key), serialized);
+  assert.equal(ctx.live.vocabularyLists.length, 0);
+  assert.equal(ctx.live.courses["es-en"].xp, 145);
+  ctx.guard.assertUnlocked();
+});
+
+test("WordPecker import refuses a stale hydrated state and restores original bytes", async () => {
+  const ctx = device();
+  seedWordPecker(ctx);
+  const hydrate = ctx.options.rehydrate;
+  let first = true;
+  ctx.options.rehydrate = async () => {
+    if (first) { first = false; return; }
+    await hydrate();
+  };
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /rehydrated WordPecker progress does not match storage/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  assert.equal(ctx.live.vocabularyLists.length, 0);
+  ctx.guard.assertUnlocked();
+});
+
+test("WordPecker import never overwrites an unexpected newer write during rollback", async () => {
+  const ctx = device();
+  seedWordPecker(ctx);
+  ctx.options.rehydrate = async () => {
+    const newest = JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY));
+    newest.state.courses["es-en"].xp = 999;
+    ctx.disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(newest));
+    throw new Error("simulated hydration failure after external writer");
+  };
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /rollback incomplete/);
+  assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+  assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
+  ctx.guard.assertUnlocked();
+});
+
+test("invalid WordPecker input or unpersisted progress aborts before writing", async () => {
+  const ctx = device();
+  const { key, serialized } = seedWordPecker(ctx);
+  ctx.live = { ...ctx.live, streak: 123 };
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /in-memory edits differ from saved progress/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  ctx.live = initial();
+  ctx.disk.set(key, "invalid JSON");
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /malformed legacy vocabulary/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  ctx.disk.set(key, serialized);
+  ctx.hydrated = false;
+  await assert.rejects(importVerifiedWordPeckerVocabulary(ctx.options),
+    /finish loading first/);
   ctx.guard.assertUnlocked();
 });
