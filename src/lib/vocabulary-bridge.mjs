@@ -4,7 +4,10 @@
  * The caller decides when to commit the returned progress state.
  */
 import {
+  PROGRESS_STORAGE_KEY,
+  createProgressBackup,
   migrateProgressData,
+  restoreProgressBackupToStorage,
   validateProgressData,
   vocabularyReviewKey,
 } from "./progress-data.mjs";
@@ -144,4 +147,62 @@ export function mergeWordPeckerVocabulary(progress, source) {
     }
   }
   return validateProgressData({ ...base, courses, vocabularyLists: lists });
+}
+
+
+/** Legacy WordPecker storage is intentionally retained after any import. */
+export const WORDPECKER_LEGACY_STORAGE_KEY = "red-poly:vocabulary-v1";
+
+function decodeStoredProgress(raw) {
+  assert(typeof raw === "string" && raw.length > 0, "missing saved progress-v2");
+  let stored;
+  try { stored = JSON.parse(raw); }
+  catch { throw new Error("Invalid WordPecker migration: malformed saved progress"); }
+  assert(isObject(stored) && isObject(stored.state), "saved progress payload");
+  const version = stored.version ?? 0;
+  return migrateProgressData(stored.state, version);
+}
+
+/**
+ * Explicit, verified storage import for integration UI.
+ * IMPORTANT: caller must pause learning edits and wait for previous persist
+ * writes before calling; AsyncStorage has no compare-and-swap transactions.
+ *
+ * Validation and stale-snapshot checks happen before any destination write.
+ * restoreProgressBackupToStorage takes a retained original-byte checkpoint,
+ * verifies the committed payload and rolls back on failed writes.
+ * The legacy key is never changed and stays available for recovery.
+ */
+export async function importWordPeckerVocabularyToStorage(storage) {
+  const original = await storage.getItem(PROGRESS_STORAGE_KEY);
+  const legacyRaw = await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY);
+  assert(typeof legacyRaw === "string" && legacyRaw.length > 0,
+    "missing legacy vocabulary");
+  let legacy;
+  try { legacy = JSON.parse(legacyRaw); }
+  catch { throw new Error("Invalid WordPecker migration: malformed legacy vocabulary"); }
+  const prior = decodeStoredProgress(original);
+  const merged = mergeWordPeckerVocabulary(prior, legacy);
+
+  // Catch edits between the snapshot reads and commit. This does not replace
+  // a UI-level write lock: AsyncStorage cannot prevent writes after this check.
+  assert(await storage.getItem(PROGRESS_STORAGE_KEY) === original,
+    "progress changed during import; retry while edits are paused");
+  assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
+    "vocabulary changed during import; retry while edits are paused");
+
+  await restoreProgressBackupToStorage(createProgressBackup(merged), storage);
+
+  const persisted = decodeStoredProgress(await storage.getItem(PROGRESS_STORAGE_KEY));
+  assert(JSON.stringify(persisted.courses) === JSON.stringify(merged.courses) &&
+    JSON.stringify(persisted.vocabularyLists) === JSON.stringify(merged.vocabularyLists) &&
+    persisted.streak === merged.streak, "persisted data verification");
+  assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
+    "legacy vocabulary changed after import");
+
+  return {
+    listsAdded: merged.vocabularyLists.length - prior.vocabularyLists.length,
+    wordsAdded: merged.vocabularyLists.reduce((n, list) => n + list.words.length, 0) -
+      prior.vocabularyLists.reduce((n, list) => n + list.words.length, 0),
+  };
 }
