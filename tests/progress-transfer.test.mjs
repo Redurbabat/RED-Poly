@@ -339,3 +339,38 @@ test("failed WordPecker import rehydrates external XP instead of leaving stale l
   assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
   ctx.guard.assertUnlocked();
 });
+
+
+test("restore does not report success while a hydration-triggered save is still pending", async () => {
+  const ctx = device();
+  const replacement = initial();
+  replacement.courses["es-en"].xp = 501;
+  let finishWrite;
+  const delayed = new Promise((resolve) => { finishWrite = resolve; });
+  const hydrate = ctx.options.rehydrate;
+  ctx.options.rehydrate = async () => {
+    await hydrate();
+    // Zustand may schedule a persistence write while it rehydrates.
+    // Simulate a stale write completing after hydration has returned.
+    ctx.guard.trackWrite(delayed.then(() => {
+      ctx.disk.set(PROGRESS_STORAGE_KEY, ctx.original);
+    }));
+  };
+
+  let settled = false;
+  let outcome;
+  const restore = restoreVerifiedProgressBackup(
+    createProgressBackup(replacement), ctx.options,
+  ).then(
+    () => { settled = true; outcome = "success"; },
+    (error) => { settled = true; outcome = error; },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, "restore must wait for hydration-triggered saves");
+  finishWrite();
+  await restore;
+  assert.notEqual(outcome, "success", "late stale write must not be considered a verified restore");
+  assert.match(outcome.message, /rollback incomplete/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  ctx.guard.assertUnlocked();
+});
