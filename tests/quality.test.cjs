@@ -36,6 +36,15 @@ test("native glass uses availability checks and accessibility fallback", () => {
   assert.match(code, /backgroundColor: reduceTransparency \|\| Platform\.OS === "web"/);
 });
 
+test("accessibility defaults avoid initial glass or motion flashes", () => {
+  const code = read("src/components/red-poly-ui.tsx");
+  assert.match(code, /const \[reduceTransparency, setReduceTransparency\] = useState\(true\)/);
+  assert.match(code, /const \[reduced, setReduced\] = useState\(true\)/);
+  assert.match(code, /animationType=\{reducedMotion \? "none" : "fade"\}/);
+  assert.match(code, /<KeyboardAvoidingView/);
+  assert.match(code, /accessibilityViewIsModal/);
+});
+
 test("ESLint exceptions remain limited to two pre-existing layout/lesson files", () => {
   const config = read("eslint.config.js");
   assert.match(config, /src\/app\/_layout\.tsx/);

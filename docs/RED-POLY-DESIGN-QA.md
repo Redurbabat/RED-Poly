@@ -8,7 +8,7 @@
 - Farben aus `src/lib/theme.ts`, Systempräferenz und bestehende Nutzereinstellung. Mindesthöhe interaktiver Elemente 44 pt.
 - Glas: `PolyGlassSurface` enthält jetzt `GlassView` aus dem bereits installierten `expo-glass-effect` 56.0.4, **nur** falls `isLiquidGlassAvailable()` und `isGlassEffectAPIAvailable()` auf iOS zustimmen und Reduce Transparency deaktiviert ist. Ältere iOS-Versionen, Android, Web und Reduce Transparency nutzen eine lesbare View-Fallback-Oberfläche. **Die native Darstellung ist noch nicht auf einem echten iPhone geprüft.** Quelle: [Expo SDK 56 GlassEffect](https://docs.expo.dev/versions/v56.0.0/sdk/glass-effect/).
 - Motion: `usePolyMotion` liefert Dauerwerte und respektiert Reduce Motion. Es startet selbst keine Daueranimation.
-- Dialog: native `Modal`, Android-Back über `onRequestClose`; tatsächliche VoiceOver-Fokusführung noch manuell prüfen.
+- Dialog: native `Modal`, Android-Back über `onRequestClose`, `accessibilityViewIsModal`, iOS-`KeyboardAvoidingView`; bei Reduce Motion wird die Einblendung deaktiviert. Tatsächliche VoiceOver-Fokusführung und Bildschirmtastatur noch manuell prüfen.
 
 ## Automatische Qualität
 - `.github/workflows/quality.yml`: GitHub PR -> `main` (sowie manuell per Workflow-Dispatch). Frozen Bun-Lockfile, TypeScript, gesamte Expo-App (`src`) mit ESLint-Fehlerprüfung, strengere neue UI-Primitive, Node Unit-/Strukturtests, Expo-Web-/iOS-/Android-JavaScript-Export und PR-Diffcheck.
@@ -44,3 +44,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - [Run 43812894282](https://github.com/Redurbabat/RED-Poly/actions/runs/43812894282), Commit `58a7e5e`, **alle Schritte bestanden**: Frozen Bun-Lockfile, TypeScript, ESLint gesamtes `src/` (mit zwei dokumentierten Datei-/Regelausnahmen), ESLint UI-Bibliothek strikt, **6/6** Node-Tests, Expo JS Exports für **Web, iOS und Android**, PR-Diffcheck.
 - `bunx expo export --platform ios --output-dir .ci-ios-bundle` und `bunx expo export --platform android --output-dir .ci-android-bundle` sind **nur Metro/JS-Bundle-Smoke-Tests**, keine IPA/APK/Simulator-/Geräteprüfung und keine Validierung nativer GlassView-Darstellung.
 - Künftige CI nur pro Pull Request (plus manuelle Ausführung), um doppelte Jobs bei Branch-Push und PR zu vermeiden.
+
+## Barrierefreiheits-Fallbacks (16.11.2026)
+- Reduce Transparency und Reduce Motion starten konservativ als **aktiv**, bis `AccessibilityInfo` die tatsächliche Einstellung ausgelesen hat. So erscheint nicht kurz native Glastransparenz oder Animation bei noch ungeklärter OS-Vorgabe.
+- `PolyDialog` schaltet seine Modal-Animation bei Reduce Motion auf `none`, markiert den Dialog als Accessibility-Modal und nutzt `KeyboardAvoidingView` auf iOS. Ein echter iPhone-/VoiceOver-/Tastaturtest steht weiterhin aus.
+- Strukturtests für die Startzustände und Dialogeigenschaften ergänzt. Diese Tests ersetzen keine Geräte- oder Renderprüfungen.
