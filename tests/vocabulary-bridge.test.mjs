@@ -239,3 +239,28 @@ test("failed progress write restores original bytes and retains WordPecker data"
   assert.equal(disk.get("progress-v2-restore-checkpoint"), original);
   assert.equal(disk.get(WORDPECKER_LEGACY_STORAGE_KEY), legacyRaw);
 });
+
+
+test("concurrent XP edit at final pre-write read cannot be silently overwritten", async () => {
+  const { disk, operations, storage } = makeStorage();
+  let progressReads = 0;
+  const racing = {
+    ...storage,
+    async getItem(key) {
+      if (key === PROGRESS_STORAGE_KEY && ++progressReads === 3) {
+        // Simulate an existing lesson finishing between the early consistency
+        // check and restore's final read before writing.
+        const modified = JSON.parse(disk.get(key));
+        modified.state.courses["es-en"].xp = 777;
+        disk.set(key, JSON.stringify(modified));
+      }
+      return storage.getItem(key);
+    },
+  };
+  await assert.rejects(
+    importWordPeckerVocabularyToStorage(racing),
+    /progress changed during import/
+  );
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 777);
+  assert.equal(operations.length, 0);
+});
