@@ -47,6 +47,12 @@ export default function PracticeScreen() {
         </View>
 
         <View style={styles.card}>
+          <View style={styles.cardHeader}><Ionicons name="chatbubbles-outline" size={24} color={colors.sky} /><Text style={styles.cardTitle}>Sprachgespräch</Text></View>
+          <Text style={styles.cardSubtitle}>Textgespräche im gekennzeichneten Offline-Demomodus üben.</Text>
+          <DuoButton label="Gespräch öffnen" onPress={() => router.push("/conversation")} variant="primary" />
+        </View>
+
+        <View style={styles.card}>
           <View style={styles.cardHeader}>
             <MaterialCommunityIcons
               name="treasure-chest"
