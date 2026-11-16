@@ -87,6 +87,7 @@ export async function restoreVerifiedProgressBackup(serialized, options) {
     await restoreProgressBackupToStorage(serialized, options.storage, original);
     try {
       await options.rehydrate();
+        await options.guard.drain();
       assert(equalSnapshots(options.getState(), incoming),
         "rehydrated data does not match the restored backup");
       // Verify no newer/different persisted state was written by an
@@ -106,6 +107,7 @@ export async function restoreVerifiedProgressBackup(serialized, options) {
           "original bytes could not be verified after rollback");
         if (original !== null) {
           await options.rehydrate();
+        await options.guard.drain();
           assert(equalSnapshots(options.getState(), decodePersisted(original)),
             "original learning data could not be rehydrated");
         }
@@ -149,6 +151,7 @@ export async function importVerifiedWordPeckerVocabulary(options) {
         try {
           const persisted = decodePersisted(latest);
           await options.rehydrate();
+        await options.guard.drain();
           assert(equalSnapshots(options.getState(), persisted),
             "rehydrated state differs from progress saved during failed import");
           assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === latest,
@@ -167,6 +170,7 @@ export async function importVerifiedWordPeckerVocabulary(options) {
 
     try {
       await options.rehydrate();
+        await options.guard.drain();
       const persisted = await options.storage.getItem(PROGRESS_STORAGE_KEY);
       assert(persisted === importedBytes,
         "saved progress changed during WordPecker rehydration");
@@ -181,6 +185,7 @@ export async function importVerifiedWordPeckerVocabulary(options) {
         assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === original,
           "original progress could not be verified after rollback");
         await options.rehydrate();
+        await options.guard.drain();
         assert(equalSnapshots(options.getState(), decodePersisted(original)),
           "original progress could not be rehydrated after rollback");
       } catch (rollbackError) {
