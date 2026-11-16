@@ -58,6 +58,33 @@ useProgress.getState().reviewLearningItem(
 - Sprachaufnahmen, Transkripte, Provider-Tokens und persönliche Gesprächsdaten sind **nicht Teil** dieses Persistenzschemas. Nutzereinwilligung und getrennten Datenlebenszyklus vor Implementierung klären.
 - Gesprächssitzung/Provider/Audio sind **nicht** durch diesen PR implementiert.
 
+
+## Übergang von Agent 02: vorhandene WordPecker-Wortlisten
+
+Agent 02 verwendet vor der Integration den lokalen AsyncStorage-Schlüssel `red-poly:vocabulary-v1` mit Wortfeldern `value`, `translation`, `example`, `correct`, `wrong`, `review`. Diese Daten sind **nicht** bereits Bestandteil von `progress-v2` und dürfen bei der Zusammenführung nicht verloren gehen.
+
+Agent 01 stellt einen **expliziten, reinen Importadapter** bereit:
+
+```ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useProgress } from "@/lib/store";
+
+const raw = await AsyncStorage.getItem("red-poly:vocabulary-v1");
+if (raw !== null) {
+  // Erst nach ausdrücklicher Nutzeraktion und mit sichtbarer Fehlerbehandlung.
+  useProgress.getState().importWordPeckerVocabulary(JSON.parse(raw));
+}
+```
+
+- Die importierte Liste und jedes Wort erhalten ihre bisherigen stabilen IDs, Beispiele, Zeitstempel und Kategorie. Sprachcodes werden aus gültigen Kurs-IDs (z. B. `es-en`) abgeleitet.
+- `wordStats` und `srs` landen kursbezogen im einzigen Zustand unter `vocabularyReviewKey(listId, wordId)`. Bereits vorhandene XP, Lektionen und SRS werden nicht verändert.
+- Wiederholter Import ist idempotent. Zusätzliche neue Legacy-Wörter werden angehängt; bereits importierte IDs überschreiben niemals inzwischen neuere Reviews. Konflikte im Worttext oder Kurs werden **abgelehnt**.
+- **Keine automatische Migration beim Start**, kein Löschen oder Überschreiben von `red-poly:vocabulary-v1`. Auch nach `setState` schreibt die Zustand-Persistenz asynchron: Die UI muss eine persistierte und verifizierte Übernahme sicherstellen, bevor der separate Speicher irgendwann entfernt wird.
+- **Wichtig:** Nur diese Schnittstelle allein vereinheitlicht nicht die aktuelle Agent-02-UI. Vor dem Merge muss Agent 02 die Wortlistenoberfläche auf `useProgress` umstellen oder eine koordinierte Übernahme mit anschliessender Datenverifikation durchführen. Beide unabhängigen Schreibpfade gleichzeitig dauerhaft zu nutzen wäre ein Fehler.
+- Agent 03 hat eine separate Speicherung für Gesprächstranskripte. Diese ist zulässig, solange keine zweite Quelle für XP/Statistik/SRS entsteht.
+
+Tests: `tests/vocabulary-bridge.test.mjs` prüft Übernahme und Erhalt von Review-Historie, Konflikte, idempotentes Wiederholen, inkrementellen Import sowie einen **simulierten** Offline-Neustart mit AsyncStorage-kompatiblem In-Memory-Adapter. Ein echter React-Native-AsyncStorage-Gerätetest bleibt offen.
+
 ## Export / Restore
 
 ```ts
