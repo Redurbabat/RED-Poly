@@ -14,7 +14,9 @@ concurrency:
 jobs:
   quality:
     name: Install, types, lint, tests
-    runs-on: ubuntu-latest
+    # Playwright 1.56.1 provides Chromium dependencies for Ubuntu 24.04;
+    # ubuntu-latest currently resolves to Ubuntu 26.04 and breaks browser setup.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
