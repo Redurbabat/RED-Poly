@@ -39,7 +39,7 @@ test("native glass uses availability checks and accessibility fallback", () => {
 test("ESLint exceptions remain limited to two pre-existing layout/lesson files", () => {
   const config = read("eslint.config.js");
   assert.match(config, /src\/app\/_layout\.tsx/);
-  assert.match(config, /src\/app\/lesson\/\[id\]\.tsx/);
+  assert.ok(config.includes("src/app/lesson/[[]id[]].tsx"));
   assert.match(config, /react-hooks\/refs/);
 });
 
