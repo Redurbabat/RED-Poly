@@ -31,7 +31,9 @@ jobs:
         run: bunx tsc --noEmit
       - name: Install pinned ESLint tools (without updating Bun lockfile)
         run: bun add --no-save --ignore-scripts eslint@9.39.1 eslint-config-expo@56.0.4
-      - name: ESLint – shared components
+      - name: ESLint – Expo app (all source files, block errors)
+        run: bunx eslint src --quiet
+      - name: ESLint – shared components (strict)
         run: bunx eslint src/components/red-poly-ui.tsx --max-warnings=0
       - name: Unit and structure tests
         run: node --test tests/*.test.cjs
