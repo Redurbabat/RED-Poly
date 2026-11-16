@@ -174,9 +174,15 @@ export function parseProgressBackup(serialized) {
  * Caller must suspend edits and rehydrate Zustand after this resolves.
  * On a failed write or verification, the original bytes are restored.
  */
-export async function restoreProgressBackupToStorage(serialized, storage) {
+export async function restoreProgressBackupToStorage(serialized, storage, expectedOriginal = undefined) {
   const nextState = parseProgressBackup(serialized);
   const original = await storage.getItem(PROGRESS_STORAGE_KEY);
+  // Optional compare-before-write fence for migrations. Reject a newer
+  // persisted snapshot rather than silently losing its XP / SRS edits.
+  if (expectedOriginal !== undefined) {
+    assert(original === expectedOriginal,
+      "progress changed during import; retry while edits are paused");
+  }
   if (original !== null) {
     // A second restore must not overwrite the first recoverable original.
     const checkpoint = await storage.getItem(RESTORE_CHECKPOINT_KEY);
