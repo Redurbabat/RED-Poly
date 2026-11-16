@@ -37,3 +37,10 @@
 - Official Expo SDK 56 version family. This is a new package dependency, not a copy of native Mural source or audio assets.
 - Native events: start, final result, error, end; no saved WAV/audio, no background capture, no automatic transcript submission, no cloud AI provider configured.
 - Device testing remains mandatory before claiming iOS/Android recording support. Build only after the unrelated inherited app identifier and signing identity have been reviewed by the maintainer.
+
+## RED POLY application identity and build safety
+- Configuration updated from inherited Lingo identifiers to `RED POLY`, `red-poly`, `redpoly`, `com.redurbabat.redpoly` (iOS + Android).
+- Removed inherited Expo `owner`, `extra.eas.projectId` and the unrelated App Store `ascAppId`. No new owner/project ID was invented. A fresh EAS project must be linked by the actual Expo-account owner before any remote build. No EAS signing/build/submission executed.
+- **Data warning:** Changing the bundle/package ID creates a separate app installation and storage sandbox. Existing `progress-v2` records from older installations are **not** automatically migrated. Preserve original installations, identifiers and backups until a reviewed export/import or migration path exists.
+- Existing icons and other Lingo assets are unchanged and their rights remain subject to review; no release is authorized by this change.
+- Device installs, app upgrade, signing, and App Store publishing remain **NOT TESTED**. CI covers identity assertions, native Expo config generation, offline unit tests and TypeScript only.

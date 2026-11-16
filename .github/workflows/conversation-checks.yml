@@ -6,6 +6,8 @@ on:
       - "src/features/conversation/**"
       - "src/app/conversation.tsx"
       - "app.json"
+      - "eas.json"
+      - "tests/conversation-app-identity.test.mjs"
       - "package.json"
       - "bun.lock"
       - "src/app/(tabs)/practice.tsx"
@@ -29,7 +31,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run offline conversation engine tests
-        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs
+        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs
       - uses: oven-sh/setup-bun@v2
       - name: Install project dependencies
         run: bun install --frozen-lockfile
