@@ -14,6 +14,8 @@ Implementierte Dateien:
 - `src/lib/vocabulary-bridge.mjs` / `.d.mts`: validierter Import aus dem getrennten Vokabelspeicher von Agent 02.
 - `src/lib/progress-write-guard.mjs` / `.d.mts`: lokale Schreibsperre mit Abschlussprüfung ausstehender Persistenzoperationen.
 - `tests/progress-write-guard.test.mjs`: überprüft Sperre, parallele Importe und fehlerhafte Speicheroperationen.
+- `src/lib/progress-transfer.mjs` / `.d.mts`: überprüfter Geräte-Export und abgesicherter Restore mit gemeinsamer Schreibsperre.
+- `tests/progress-transfer.test.mjs`: prüft Backup aus verifiziertem Speicherstand, den Restore-Ablauf, erneutes Einlesen und Rollback.
 
 ## Persistenz / Migration
 
@@ -96,26 +98,34 @@ Tests: `tests/vocabulary-bridge.test.mjs` prüft Übernahme und Erhalt von Revie
 ## Export / Restore
 
 ```ts
-import { exportProgressBackup, restoreProgressBackup } from "@/lib/store";
+import {
+  exportPersistedProgressBackup,
+  restoreProgressBackup,
+} from "@/lib/store";
 
-const backupJSON = exportProgressBackup(); // nur Daten, keine Zustand-Actions
-// Nach expliziter Nutzeraktion, bei pausierten Schreibvorgängen:
+// NUR nach expliziter Nutzeraktion und mit Fehlerbehandlung in der UI.
+const backupJSON = await exportPersistedProgressBackup();
+// UI zeigt Warnung: Restore ersetzt den aktuell gespeicherten Lernstand.
+// Nach expliziter Bestätigung und ohne direkte externe AsyncStorage-Schreibende:
 await restoreProgressBackup(backupJSON);
 ```
 
-- Format `{ format: "red-poly-progress", version: 1, exportedAt, state }`; automatische Wiederherstellung beim Starten ist **nicht** vorgesehen.
-- Der Restore prüft den Inhalt vor dem Schreiben, speichert ursprüngliche Bytes als `progress-v2-restore-checkpoint`, verifiziert diese und versucht bei Storage-Fehlern einen Rollback. Danach wird Zustand neu hydratisiert. **Bei erneutem Restore wird ein bestehender Checkpoint nicht überschrieben.** Das Checkpoint bleibt bis zur bewussten Nutzerentscheidung erhalten.
-- **Einschränkung:** AsyncStorage ist nicht transaktional. Schreibzugriffe während Restore müssen durch die künftige UI verhindert werden. Im Fall eines schwerwiegenden Geräte-/Speicherfehlers muss der Checkpoint gesondert zur manuellen Rettung zugänglich gemacht werden. Kein automatisches Überschreiben eines Checkpoints im Fehlerfall.
-- Kein Cloud-Upload und keine externe Bibliothek erforderlich. Die App hat **noch keine sichtbare Backup-/Restore-Oberfläche**.
+- **`exportPersistedProgressBackup()` bevorzugen:** Wartet auf ausstehende Zustand-Persistenzschreibvorgänge, sperrt reguläre Store-Aktionen vorübergehend, vergleicht Disk-Daten mit dem Arbeitsspeicher und exportiert nur die verifizierte Version. Fehlt ein persistierter Stand oder sind Daten unterschiedlich, wird der Export ohne schreibenden Eingriff abgebrochen.
+- **`exportProgressBackup()` bleibt als synchrone Kompatibilitäts-API:** Sie exportiert nur den aktuellen Arbeitsspeicher und prüft nicht den gespeicherten Stand. Für die Export-UI ist deshalb die verifizierte asynchrone API vorgesehen.
+- **`restoreProgressBackup(json)` ist ebenfalls durch denselben Schreibschutz abgesichert:** Validiert das Backup, wartet auf ausstehende Saves, prüft vorhandene Disk-/App-Snapshots vor dem Überschreiben, nutzt beim Commit die exakten alten Bytes als Sicherheitsbedingung und hydratisiert Zustand nach dem Schreiben neu. Scheitert die Rehydrierung oder die anschliessende Prüfung, versucht der Code, die vorherigen Speicherbytes wiederherzustellen und den alten Stand erneut zu laden.
+- Format `{ format: "red-poly-progress", version: 1, exportedAt, state }`; weder Export noch Restore starten automatisch beim App-Start. Für einen frischen Gerätestand ohne bereits vorhandene Daten wird ein gültiger Restore zugelassen.
+- Das Checkpoint unter `progress-v2-restore-checkpoint` bleibt erhalten und wird bei erneutem Restore nicht überschrieben. Bei bisher leerem Speicher gibt es naturgemäss noch keine alten Bytes als Checkpoint.
+- **Einschränkung:** AsyncStorage bietet keine atomaren Compare-and-Swap-Transaktionen. Fremde direkte `AsyncStorage`- bzw. `useProgress.setState`-Schreibpfade müssen während der Übernahme zusätzlich pausiert bleiben. Bei Geräte- oder Rehydrierungsfehlern sind Sicherung und Rollback nach wie vor **Best-Effort**, nicht vollständig transaktional.
+- Keine Cloud-Synchronisierung und keine externe Backup-Bibliothek. Es gibt **noch keine sichtbare Backup-/Restore-Benutzeroberfläche**.
 
 ## Tests und verbleibende Abnahme
 
 ```bash
 npm run test:core
-# äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs
+# äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs
 ```
 
-Zweiunddreissig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration einschliesslich Konflikte, Historie, simuliertem Offline-Neustart, verifiziertem Speicherimport, idempotentem Wiederholen und dem Abbruch bei konkurrierenden Änderungen. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**32 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43815891958](https://github.com/Redurbabat/RED-Poly/actions/runs/43815891958)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Vierzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Änderungen vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**40 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43824146441](https://github.com/Redurbabat/RED-Poly/actions/runs/43824146441)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, sichtbare UI zum Export/Restore mit Schreibsperre, Geräte-Abnahme inklusive echten AsyncStorage-Persistenztests und eine Migration mit sicherer Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git). Root-TypeScript und die Core-CI laufen bereits grün; separate Integrationsprojekte prüfen sich weiterhin mit ihren eigenen Dependencies.
 
