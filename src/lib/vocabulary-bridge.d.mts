@@ -37,3 +37,20 @@ export function mergeWordPeckerVocabulary(
   progress: PersistedProgressData,
   legacy: unknown
 ): PersistedProgressData;
+
+/** Old independent Agent-02 key. Never deleted by import. */
+export const WORDPECKER_LEGACY_STORAGE_KEY: "red-poly:vocabulary-v1";
+
+export interface VocabularyMigrationStorageAdapter {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<unknown>;
+  removeItem(key: string): Promise<unknown>;
+}
+/**
+ * Explicit, verified persistence bridge.
+ * Caller must block edits and ensure previous Zustand writes have settled.
+ * Requires a persisted progress-v2 record and an existing vocabulary-v1 record.
+ */
+export function importWordPeckerVocabularyToStorage(
+  storage: VocabularyMigrationStorageAdapter
+): Promise<{ listsAdded: number; wordsAdded: number }>;
