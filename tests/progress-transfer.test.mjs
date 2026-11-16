@@ -374,3 +374,32 @@ test("restore does not report success while a hydration-triggered save is still 
   assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
   ctx.guard.assertUnlocked();
 });
+
+
+test("WordPecker import drains hydration-generated writes before declaring success", async () => {
+  const ctx = device();
+  seedWordPecker(ctx);
+  let finishWrite;
+  const delayed = new Promise((resolve) => { finishWrite = resolve; });
+  const hydrate = ctx.options.rehydrate;
+  ctx.options.rehydrate = async () => {
+    await hydrate();
+    ctx.guard.trackWrite(delayed.then(() => {
+      ctx.disk.set(PROGRESS_STORAGE_KEY, ctx.original);
+    }));
+  };
+  let settled = false;
+  let outcome;
+  const operation = importVerifiedWordPeckerVocabulary(ctx.options).then(
+    () => { settled = true; outcome = "success"; },
+    (error) => { settled = true; outcome = error; },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, "import cannot finish while hydration has a pending save");
+  finishWrite();
+  await operation;
+  assert.notEqual(outcome, "success");
+  assert.match(outcome.message, /rollback incomplete/);
+  assert.equal(ctx.disk.get(PROGRESS_STORAGE_KEY), ctx.original);
+  ctx.guard.assertUnlocked();
+});
