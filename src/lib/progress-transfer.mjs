@@ -4,6 +4,7 @@
  */
 import {
   PROGRESS_STORAGE_KEY,
+  PROGRESS_STORAGE_VERSION,
   createProgressBackup,
   migrateProgressData,
   parseProgressBackup,
@@ -73,12 +74,17 @@ export async function restoreVerifiedProgressBackup(serialized, options) {
   const incoming = parseProgressBackup(serialized);
   requireHydrated(options);
   const release = await options.guard.acquire();
-  let committed = false;
+  // Same canonical bytes that restoreProgressBackupToStorage writes. The
+  // rollback must verify this exact value, not just a matching XP/SRS shape:
+  // another writer's edits must never be replaced by older data.
+  const restoredBytes = JSON.stringify({
+    state: snapshotOf(incoming),
+    version: PROGRESS_STORAGE_VERSION,
+  });
   let original = null;
   try {
     ({ original } = await takeVerifiedSnapshot(options, true));
     await restoreProgressBackupToStorage(serialized, options.storage, original);
-    committed = true;
     try {
       await options.rehydrate();
       assert(equalSnapshots(options.getState(), incoming),
@@ -88,9 +94,12 @@ export async function restoreVerifiedProgressBackup(serialized, options) {
       const actual = decodePersisted(await options.storage.getItem(PROGRESS_STORAGE_KEY));
       assert(equalSnapshots(actual, incoming), "stored backup changed during rehydration");
     } catch (error) {
-      // The old checkpoint stays intact. Roll back the just-restored bytes so
-      // another learning action cannot silently overwrite lost in-memory work.
+      // The original checkpoint stays intact. Do NOT overwrite an unrelated
+      // newer snapshot if a direct/external writer changed progress while
+      // Zustand was rehydrating. AsyncStorage has no atomic compare-and-swap.
       try {
+        assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === restoredBytes,
+          "progress changed after restore; cannot safely roll back");
         if (original === null) await options.storage.removeItem(PROGRESS_STORAGE_KEY);
         else await options.storage.setItem(PROGRESS_STORAGE_KEY, original);
         assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === original,
