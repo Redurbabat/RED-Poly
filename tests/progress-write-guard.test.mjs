@@ -64,3 +64,30 @@ test("a successful batch of writes is drained without losing results", async () 
   release();
   guard.assertUnlocked();
 });
+
+
+test("guard drains saves submitted while migration already holds its lock", async () => {
+  const guard = createProgressWriteGuard();
+  const release = await guard.acquire();
+  let finishWrite;
+  const delayed = new Promise((resolve) => { finishWrite = resolve; });
+  let completed = false;
+  guard.trackWrite(delayed);
+  const draining = guard.drain().then(() => { completed = true; });
+  await Promise.resolve();
+  assert.equal(completed, false);
+  assert.throws(() => guard.assertUnlocked(), /edits blocked/);
+  finishWrite();
+  await draining;
+  assert.equal(completed, true);
+  release();
+  guard.assertUnlocked();
+});
+
+test("draining is only allowed during an active migration lock", async () => {
+  const guard = createProgressWriteGuard();
+  await assert.rejects(guard.drain(), /requires an active migration lock/);
+  const release = await guard.acquire();
+  await guard.drain();
+  release();
+});
