@@ -132,3 +132,13 @@ test("export failure clears stale backup and native share is user-initiated only
   assert.match(code, /execute\("share"/);
   assert.match(code, /label="Exportanzeige löschen"/);
 });
+
+test("restore confirmation remains accessible with short viewport and native escape", () => {
+  const code = read("src/components/poly-backup-transfer.tsx");
+  assert.match(code, /onRequestClose=\{cancelRestore\}/);
+  assert.match(code, /onAccessibilityEscape=\{cancelRestore\}/);
+  assert.match(code, /keyboardShouldPersistTaps="handled"/);
+  assert.match(code, /style=\{styles\.modalScroller\}/);
+  assert.match(code, /contentContainerStyle=\{styles\.modalScrollBody\}/);
+  assert.match(code, /modalScrollBody: \{ flexGrow: 1/);
+});

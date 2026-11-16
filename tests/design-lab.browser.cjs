@@ -165,13 +165,25 @@ async function main() {
     await incomingField.fill(exported);
     await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
     await page.getByText("Lernstand wirklich ersetzen?").waitFor();
+    // Emulate the *available* height when the software keyboard is open.
+    // At 320 x 350 the entire dialog will not fit without an internal scroll.
+    await page.setViewportSize({ width: 320, height: 350 });
+    const modalOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    assert.ok(modalOverflow <= 1, "backup confirmation overflows 320px width");
     const irreversible = page.getByRole("button", { name: "Lernstand endgültig ersetzen" });
     assert.equal(await irreversible.isDisabled(), true);
     const phrase = page.getByRole("textbox", { name: "Bestätigungscode ERSETZEN" });
     await phrase.fill("FALSCH");
     assert.equal(await irreversible.isDisabled(), true);
+    await page.screenshot({
+      path: path.join(outputDir, "backup-short-viewport-confirmation.png"),
+      fullPage: true,
+    });
     await page.getByRole("button", { name: "Abbrechen" }).click();
     await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
 
     // A rejected core restore must show an error, preserve input and allow retry.
     await page.getByRole("button", { name: "Nächste Wiederherstellung fehlschlagen lassen" }).click();

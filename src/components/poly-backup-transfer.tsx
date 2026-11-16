@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -245,8 +246,15 @@ export function PolyBackupTransfer({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.backdrop}
         >
+          <ScrollView
+          style={styles.modalScroller}
+          contentContainerStyle={styles.modalScrollBody}
+          keyboardShouldPersistTaps="handled"
+          accessibilityLabel="Bestätigung der Lernstand-Wiederherstellung"
+        >
           <View
             accessibilityViewIsModal
+            onAccessibilityEscape={cancelRestore}
             style={[styles.modal, { backgroundColor: c.surface, borderColor: c.neutral300 }]}
           >
             <Text accessibilityRole="header" style={[styles.title, { color: c.text }]}>
@@ -279,6 +287,7 @@ export function PolyBackupTransfer({
             />
             <PolyButton tone="secondary" label="Abbrechen" disabled={isBusy} onPress={cancelRestore} />
           </View>
+        </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -311,6 +320,10 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: "600" },
   input: { borderRadius: radius.md, borderWidth: 1, minHeight: 48, padding: 12, fontSize: 14 },
   jsonField: { minHeight: 104, maxHeight: 180, textAlignVertical: "top", fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 18 },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", padding: 18 },
+  // A short viewport (or an open iPhone keyboard) must not hide Cancel/Confirm.
+  // The dialog grows up to its natural height; the outer ScrollView takes over.
+  modalScroller: { flex: 1, width: "100%" },
+  modalScrollBody: { flexGrow: 1, justifyContent: "center", alignItems: "center", paddingVertical: 16 },
   modal: { borderWidth: 1, borderRadius: radius.xl, padding: 18, gap: 16, width: "100%", maxWidth: 480, alignSelf: "center" },
 });
