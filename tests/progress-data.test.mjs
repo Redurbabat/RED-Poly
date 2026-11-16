@@ -220,3 +220,35 @@ test("original-bytes fence accepts an unchanged snapshot for verified restore", 
   assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.streak, 25);
   assert.equal(disk.get(RESTORE_CHECKPOINT_KEY), before);
 });
+
+
+test("late XP update while checkpoint is written aborts restore without overwriting progress", async () => {
+  const initialState = initial();
+  const original = JSON.stringify({ version: 1, state: initialState });
+  const newerState = structuredClone(initialState);
+  newerState.courses["es-en"].xp = 987;
+  const newer = JSON.stringify({ version: 1, state: newerState });
+  const disk = new Map([[PROGRESS_STORAGE_KEY, original]]);
+  const writes = [];
+  const storage = {
+    async getItem(k) { return disk.get(k) ?? null; },
+    async setItem(k, v) {
+      writes.push(k);
+      disk.set(k, v);
+      // A direct external save completes after the checkpoint was created,
+      // but before restore writes the requested older snapshot.
+      if (k === RESTORE_CHECKPOINT_KEY) disk.set(PROGRESS_STORAGE_KEY, newer);
+    },
+    async removeItem(k) { disk.delete(k); },
+  };
+  const imported = structuredClone(initialState);
+  imported.streak = 50;
+  await assert.rejects(
+    restoreProgressBackupToStorage(createProgressBackup(imported), storage, original),
+    /progress changed during import/
+  );
+  assert.equal(disk.get(PROGRESS_STORAGE_KEY), newer);
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 987);
+  assert.equal(disk.get(RESTORE_CHECKPOINT_KEY), original);
+  assert.deepEqual(writes, [RESTORE_CHECKPOINT_KEY]);
+});
