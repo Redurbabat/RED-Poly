@@ -15,3 +15,11 @@ export function restoreVerifiedProgressBackup(
   serialized: string,
   options: VerifiedProgressTransferOptions
 ): Promise<void>;
+
+/**
+ * Explicit, edit-guarded WordPecker migration with persisted-data and
+ * in-memory rehydration verification and conditional rollback on failure.
+ */
+export function importVerifiedWordPeckerVocabulary(
+  options: VerifiedProgressTransferOptions
+): Promise<{ listsAdded: number; wordsAdded: number }>;
