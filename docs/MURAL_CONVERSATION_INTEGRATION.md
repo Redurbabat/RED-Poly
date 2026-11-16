@@ -57,3 +57,7 @@
 ## Local no-paid-account development path
 - See [`docs/IOS_LOCAL_DEVELOPMENT.md`](IOS_LOCAL_DEVELOPMENT.md): local Xcode/Personal Team instructions, consent verification and safe limitations.
 - CI separately exports the iOS JavaScript bundle without signing. Passing that check only confirms Metro can bundle app code, not native linking or physical-device installation.
+
+## iOS Simulator native compile and launch validation
+- GitHub Actions [#43858717248](https://github.com/Redurbabat/RED-Poly/actions/runs/43858717248) succeeded for the native iOS Simulator `xcodebuild` (unsigned) and published artifact `red-poly-unsigned-ios-simulator`. This is **not** an iPhone IPA.
+- A follow-on simulator smoke test installs and launches the Debug `.app` using `simctl`. The result is reported by CI, not assumed. The JavaScript UI, live speech and physical-device behaviour remain unverified.
