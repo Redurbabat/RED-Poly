@@ -49,3 +49,9 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Reduce Transparency und Reduce Motion starten konservativ als **aktiv**, bis `AccessibilityInfo` die tatsächliche Einstellung ausgelesen hat. So erscheint nicht kurz native Glastransparenz oder Animation bei noch ungeklärter OS-Vorgabe.
 - `PolyDialog` schaltet seine Modal-Animation bei Reduce Motion auf `none`, markiert den Dialog als Accessibility-Modal und nutzt `KeyboardAvoidingView` auf iOS. Ein echter iPhone-/VoiceOver-/Tastaturtest steht weiterhin aus.
 - Strukturtests für die Startzustände und Dialogeigenschaften ergänzt. Diese Tests ersetzen keine Geräte- oder Renderprüfungen.
+
+## Design Lab im Entwicklungsmodus (16.11.2026)
+- Neue isolierte Route `src/app/design-lab.tsx` als praktische Vorschau aller 10 UI-Bausteine. Aufruf bei gestarteter Expo-Entwicklung: `/design-lab`, im Web üblicherweise `http://localhost:8081/design-lab` (Port laut Expo-Konsolenausgabe). **Kein zusätzlicher Tab, kein eigener Lernstand und keine Änderung an den Lern-Screens.**
+- Die Route zeigt interaktive Buttons, Deaktivierung, Ladezustand, Fehlermeldung mit Wiederholung, ein Eingabefeld mit Validierungsfehler, Auswahl, veränderbaren Fortschritt, Glasoberfläche und einen bestätigbaren/abbrechbaren Dialog.
+- **In Produktions-Builds:** sofortige Weiterleitung zu `/(tabs)` über `__DEV__`; die Route ist nicht als separates Produktmerkmal gedacht. Ein Test im Browser oder auf Hardware muss separat durchgeführt werden.
+- Manueller QA-Durchlauf: hell/dunkel, kleine Bildschirme, vergrösserte Schrift, Tastaturüberdeckung, Dialog-Fokus, Reduce Motion, Reduce Transparency und Screenreader. Ergebnisse erst nach Durchführung als bestanden markieren.

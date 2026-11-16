@@ -52,6 +52,19 @@ test("ESLint exceptions remain limited to two pre-existing layout/lesson files",
   assert.match(config, /react-hooks\/refs/);
 });
 
+test("design preview is development-only and demonstrates every primitive", () => {
+  const code = read("src/app/design-lab.tsx");
+  assert.match(code, /__DEV__ \? <DesignLab \/> : <Redirect href="\/(tabs)" \/>/);
+  for (const name of ["PolyButton", "PolyCard", "PolyTextField", "PolyNavItem",
+    "PolyDialog", "PolyLoading", "PolyError", "PolyProgress", "PolyGlassSurface",
+    "usePolyMotion"]) {
+    assert.match(code, new RegExp("<" + name + "\\b|\\b" + name + "\\("));
+  }
+  assert.match(code, /setProgress/);
+  assert.match(code, /setDialogOpen/);
+  assert.match(code, /onChangeText=\{setQuery\}/);
+});
+
 test("existing persisted progress key must not change", () => {
   assert.match(read("src/lib/store.ts"), /progress-v2/);
 });
