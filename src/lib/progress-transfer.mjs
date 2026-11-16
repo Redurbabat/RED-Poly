@@ -9,6 +9,7 @@ import {
   parseProgressBackup,
   restoreProgressBackupToStorage,
 } from "./progress-data.mjs";
+import { importWordPeckerVocabularyToStorage } from "./vocabulary-bridge.mjs";
 
 const assert = (condition, reason) => {
   if (!condition) throw new Error("RED POLY progress transfer: " + reason);
@@ -103,6 +104,56 @@ export async function restoreVerifiedProgressBackup(serialized, options) {
         throw new Error("RED POLY progress transfer: restore failed and rollback incomplete", {
           cause: rollbackError,
         });
+      }
+      throw error;
+    }
+  } finally {
+    release();
+  }
+}
+
+
+/**
+ * Full device migration, including rehydration verification. The underlying
+ * WordPecker adapter preserves the original checkpoint and never deletes the
+ * legacy vocabulary key. The app edit guard remains held during all steps.
+ *
+ * If the adapter succeeds but hydration fails, restore original bytes only
+ * when the destination is still exactly the snapshot we just imported.
+ * Unknown writes must not be clobbered by a blind rollback.
+ */
+export async function importVerifiedWordPeckerVocabulary(options) {
+  requireHydrated(options);
+  const release = await options.guard.acquire();
+  try {
+    const { original } = await takeVerifiedSnapshot(options);
+    const result = await importWordPeckerVocabularyToStorage(options.storage);
+    const importedBytes = await options.storage.getItem(PROGRESS_STORAGE_KEY);
+    assert(importedBytes !== null, "imported progress is missing");
+
+    try {
+      await options.rehydrate();
+      const persisted = await options.storage.getItem(PROGRESS_STORAGE_KEY);
+      assert(persisted === importedBytes,
+        "saved progress changed during WordPecker rehydration");
+      assert(equalSnapshots(options.getState(), decodePersisted(importedBytes)),
+        "rehydrated WordPecker progress does not match storage");
+      return result;
+    } catch (error) {
+      try {
+        assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === importedBytes,
+          "progress changed after import; cannot safely roll back");
+        await options.storage.setItem(PROGRESS_STORAGE_KEY, original);
+        assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === original,
+          "original progress could not be verified after rollback");
+        await options.rehydrate();
+        assert(equalSnapshots(options.getState(), decodePersisted(original)),
+          "original progress could not be rehydrated after rollback");
+      } catch (rollbackError) {
+        throw new Error(
+          "RED POLY progress transfer: WordPecker import failed and rollback incomplete; original checkpoint retained",
+          { cause: rollbackError },
+        );
       }
       throw error;
     }
