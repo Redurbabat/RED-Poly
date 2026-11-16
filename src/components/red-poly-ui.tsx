@@ -8,6 +8,7 @@ import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "ex
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -38,7 +39,8 @@ export function PolyCard({ children, style }: SurfaceProps) {
 export function PolyGlassSurface({ children, style }: SurfaceProps) {
   const c = useThemeColors();
   const scheme = useResolvedScheme();
-  const [reduceTransparency, setReduceTransparency] = useState(false);
+  // Default to an opaque surface until accessibility settings are resolved.
+  const [reduceTransparency, setReduceTransparency] = useState(true);
   useEffect(() => {
     if (Platform.OS === "web") return;
     let active = true;
@@ -165,16 +167,20 @@ export function PolyDialog({
   onConfirm: () => void; onCancel: () => void;
 }) {
   const c = useThemeColors();
+  const { reducedMotion } = usePolyMotion();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.dialog, { backgroundColor: c.surface }]}>
+    <Modal visible={visible} transparent animationType={reducedMotion ? "none" : "fade"} onRequestClose={onCancel}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.modalBackdrop}
+      >
+        <View accessibilityViewIsModal style={[styles.dialog, { backgroundColor: c.surface }]}>
           <Text accessibilityRole="header" style={[styles.title, { color: c.text }]}>{title}</Text>
           <Text style={{ color: c.text, lineHeight: 22 }}>{message}</Text>
           <PolyButton tone="primary" label={confirmLabel} onPress={onConfirm} />
           <PolyButton tone="secondary" label={cancelLabel} onPress={onCancel} />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -223,7 +229,8 @@ export function PolyProgress({
 
 /** Use this for optional animated interactions; reduced-motion users get zero duration. */
 export function usePolyMotion() {
-  const [reduced, setReduced] = useState(false);
+  // Never enable motion before the user's OS preference has been resolved.
+  const [reduced, setReduced] = useState(true);
   useEffect(() => {
     let active = true;
     AccessibilityInfo.isReduceMotionEnabled()
