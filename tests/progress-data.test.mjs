@@ -185,3 +185,38 @@ test("repeated imports preserve the first original-data checkpoint", async () =>
   assert.equal(map.get(RESTORE_CHECKPOINT_KEY), "original state");
   assert.equal(JSON.parse(map.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
 });
+
+
+test("optional original-bytes fence rejects stale restore without writing", async () => {
+  const prior = JSON.stringify({ version: 1, state: initial() });
+  const newer = JSON.stringify({ version: 1, state: { ...initial(), streak: 99 } });
+  const disk = new Map([[PROGRESS_STORAGE_KEY, newer]]);
+  const writes = [];
+  const storage = {
+    async getItem(k) { return disk.get(k) ?? null; },
+    async setItem(k, v) { writes.push(k); disk.set(k, v); },
+    async removeItem(k) { writes.push(k); disk.delete(k); },
+  };
+  await assert.rejects(
+    restoreProgressBackupToStorage(createProgressBackup(initial()), storage, prior),
+    /progress changed during import/
+  );
+  assert.equal(disk.get(PROGRESS_STORAGE_KEY), newer);
+  assert.equal(disk.has(RESTORE_CHECKPOINT_KEY), false);
+  assert.deepEqual(writes, []);
+});
+
+test("original-bytes fence accepts an unchanged snapshot for verified restore", async () => {
+  const before = JSON.stringify({ version: 1, state: initial() });
+  const disk = new Map([[PROGRESS_STORAGE_KEY, before]]);
+  const storage = {
+    async getItem(k) { return disk.get(k) ?? null; },
+    async setItem(k, v) { disk.set(k, v); },
+    async removeItem(k) { disk.delete(k); },
+  };
+  const next = initial();
+  next.streak = 25;
+  await restoreProgressBackupToStorage(createProgressBackup(next), storage, before);
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.streak, 25);
+  assert.equal(disk.get(RESTORE_CHECKPOINT_KEY), before);
+});
