@@ -54,7 +54,7 @@ test("ESLint exceptions remain limited to two pre-existing layout/lesson files",
 
 test("design preview is development-only and demonstrates every primitive", () => {
   const code = read("src/app/design-lab.tsx");
-  assert.match(code, /__DEV__ \? <DesignLab \/> : <Redirect href="\/(tabs)" \/>/);
+  assert.ok(code.includes('return __DEV__ ? <DesignLab /> : <Redirect href="/(tabs)" />;'));
   for (const name of ["PolyButton", "PolyCard", "PolyTextField", "PolyNavItem",
     "PolyDialog", "PolyLoading", "PolyError", "PolyProgress", "PolyGlassSurface",
     "usePolyMotion"]) {
