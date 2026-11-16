@@ -148,6 +148,12 @@ async function main() {
     await page.getByText("Das Backup enthält kein gültiges JSON.").waitFor();
     await page.getByText("Test-Wiederherstellungen: 0").waitFor();
 
+    // The real data core also rejects oversized snapshots, so UI must stop early.
+    await incomingField.fill("x".repeat(8_000_001));
+    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
+    await page.getByText("Backup ist zu gross (maximal 8 Millionen Zeichen).").waitFor();
+    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+
     await incomingField.fill(exported);
     await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
     await page.getByText("Lernstand wirklich ersetzen?").waitFor();
@@ -158,6 +164,19 @@ async function main() {
     assert.equal(await irreversible.isDisabled(), true);
     await page.getByRole("button", { name: "Abbrechen" }).click();
     await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+
+    // A rejected core restore must show an error, preserve input and allow retry.
+    await page.getByRole("button", { name: "Nächste Wiederherstellung fehlschlagen lassen" }).click();
+    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
+    await phrase.fill("ERSETZEN");
+    await irreversible.click();
+    await page.getByText("Wiederherstellung fehlgeschlagen. Bitte Backup und aktuellen Lernstand prüfen.").waitFor();
+    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+    assert.equal(await incomingField.inputValue(), exported);
+    await page.screenshot({
+      path: path.join(outputDir, "backup-lab-restore-error.png"),
+      fullPage: true,
+    });
 
     await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
     await phrase.fill("ERSETZEN");
@@ -177,7 +196,7 @@ async function main() {
     });
 
     assert.deepEqual(exceptions, [], "browser must not raise unhandled page errors");
-    console.log("PASS: Chromium onboarding persistence, design lab, and confirmed/cancelled mock backup restore/import");
+    console.log("PASS: Chromium onboarding persistence, design lab, oversized-backup guard, failed restore/retry and mock import");
     console.log("Screenshots: " + outputDir);
   } finally {
     await browser.close();

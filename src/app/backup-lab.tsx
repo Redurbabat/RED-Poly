@@ -25,6 +25,7 @@ export default function BackupLabRoute() {
 function BackupLab() {
   const c = useThemeColors();
   const [restores, setRestores] = useState(0);
+  const [failNextRestore, setFailNextRestore] = useState(false);
   const [imports, setImports] = useState(0);
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: c.background }]}>
@@ -40,9 +41,20 @@ function BackupLab() {
           label="Zur App"
           onPress={() => router.replace("/(tabs)")}
         />
+        <PolyButton
+          tone="secondary"
+          label="Nächste Wiederherstellung fehlschlagen lassen"
+          onPress={() => setFailNextRestore(true)}
+        />
         <PolyBackupTransfer
           exportPersistedBackup={async () => DEMO_BACKUP}
-          restorePersistedBackup={async () => { setRestores((n) => n + 1); }}
+          restorePersistedBackup={async () => {
+            if (failNextRestore) {
+              setFailNextRestore(false);
+              throw new Error("Simulierter Restore-Fehler");
+            }
+            setRestores((n) => n + 1);
+          }}
           importLegacyVocabulary={async () => {
             setImports((n) => n + 1);
             return { listsAdded: 2, wordsAdded: 5 };
