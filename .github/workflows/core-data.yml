@@ -6,8 +6,11 @@ on:
     paths:
       - 'src/lib/progress-data.mjs'
       - 'src/lib/progress-data.d.mts'
+      - 'src/lib/vocabulary-bridge.mjs'
+      - 'src/lib/vocabulary-bridge.d.mts'
       - 'src/lib/store.ts'
       - 'tests/progress-data.test.mjs'
+      - 'tests/vocabulary-bridge.test.mjs'
       - 'package.json'
       - 'tsconfig.json'
       - '.github/workflows/core-data.yml'
