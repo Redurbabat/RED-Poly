@@ -47,7 +47,14 @@
           }
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "RED POLY benötigt das Mikrofon nur, wenn du die Spracheingabe selbst startest.",
+          "speechRecognitionPermission": "RED POLY verwendet die Spracherkennung nur nach deiner Zustimmung. Je nach System kann Audio online verarbeitet werden."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

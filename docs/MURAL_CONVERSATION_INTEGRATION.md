@@ -14,7 +14,9 @@
 - History is stored separately in AsyncStorage `red-poly-conversation-v1`. Max 100 validated messages on load/save. Existing `progress-v2` stays untouched.
 - Expo Speech enables optional device TTS, with speech errors displayed. TTS behaviour is platform-dependent and requires real device verification.
 - Web-only dictation uses the browser's SpeechRecognition API after explicit, visible consent. Browser vendors may transmit microphone audio to a remote recognition service; RED POLY does not control this service. Results go into the draft field and are **never auto-submitted**.
-- Native iOS/Android microphone stays disabled. A native Expo speech-recognition module would require an additional third-party dependency, native permissions, consent and a new development build; this has **not** been installed or tested.
+- Native iOS/Android dictation now uses a dynamically imported `expo-speech-recognition@56.0.4` (MIT, https://github.com/jamsch/expo-speech-recognition, upstream tag `v56.0.4`; © 2024 jamsch). A new iOS/Android **development build** is required; Expo Go will not include the module. No native build or device transcription is yet verified.
+- Expo config plugin adds microphone and iOS speech recognition permission descriptions. The UI presents explicit consent before requesting OS permissions. Device speech services may process audio remotely; no recordings are persisted by RED POLY.
+- Native recording permission denial, delayed permission responses, cancellation and late results are covered using mocked runtime tests. These tests do NOT verify actual hardware, permission dialogs or SDK integration.
 - Dictation starts only after a user action, stops on cancellation/screen unmount/navigation, and stores no raw microphone recordings.
 - No AI corrections, explanations, personalization based on learner records, generated vocabulary or automated SRS imports exist in this demo. The reply type exposes optional correction and vocabulary fields for future integration.
 
@@ -26,6 +28,12 @@
 - Stop: abort active request via AbortController; providers must respect signal and avoid auto retries on ambiguous chargeable failures.
 
 ## Verification matrix
-- GitHub Actions runs dependency-free Node 22 offline engine and simulated Web Speech adapter tests, installs the Bun lockfile and typechecks the Expo app with tsconfig.conversation.json. CI success is not proof of a native build, browser speech, device TTS or a real AI provider.
+- GitHub Actions runs Node 22 offline engine and simulated Web and Native Speech adapter tests, installs the Bun lockfile and typechecks the Expo app with tsconfig.conversation.json. CI success is not proof of a native build, browser speech, device TTS or a real AI provider.
 - Manual tests still required: start, send, cancel, persistence after relaunch, offline, invalid data, real browser speech permission/denial/audio flow, TTS on iOS/Android/Web, native microphone-disabled state and Expo start.
 - Existing coursework remains reachable through unchanged course routes.
+
+## Native dependency provenance
+- Package: `expo-speech-recognition` pinned at `56.0.4`; MIT license; author jamsch; https://github.com/jamsch/expo-speech-recognition/tree/v56.0.4
+- Official Expo SDK 56 version family. This is a new package dependency, not a copy of native Mural source or audio assets.
+- Native events: start, final result, error, end; no saved WAV/audio, no background capture, no automatic transcript submission, no cloud AI provider configured.
+- Device testing remains mandatory before claiming iOS/Android recording support. Build only after the unrelated inherited app identifier and signing identity have been reviewed by the maintainer.

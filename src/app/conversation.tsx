@@ -6,6 +6,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { SafeAreaView } from "react-native-safe-area-context";
 import { demoProvider, LANGUAGES, TOPICS, makeMessage, openingLine, type LanguageCode, type Level, type Message, type Topic } from "@/features/conversation/engine";
 import { loadConversation, saveConversation } from "@/features/conversation/storage";
+import { createNativeSpeechSession } from "@/features/conversation/native-speech";
 import { createWebSpeechSession, isWebSpeechSupported, type SpeechSession } from "@/features/conversation/web-speech";
 import { useThemeColors } from "@/lib/theme";
 
@@ -25,7 +26,8 @@ export default function ConversationScreen() {
   const [speechStarting, setSpeechStarting] = useState(false);
   const [speechListening, setSpeechListening] = useState(false);
   const speechSession = useRef<SpeechSession | null>(null);
-  const webSpeechAvailable = Platform.OS === "web" && isWebSpeechSupported();
+  const speechAttempt = useRef(0);
+  const speechAvailable = Platform.OS === "web" ? isWebSpeechSupported() : Platform.OS === "ios" || Platform.OS === "android";
   const active = useRef<AbortController | null>(null);
   const scroll = useRef<ScrollView>(null);
   useEffect(() => {
@@ -35,13 +37,14 @@ export default function ConversationScreen() {
       if (saved) { setLanguage(saved.language); setLevel(saved.level); setTopic(saved.topic); setMessages(saved.messages); }
       setLoaded(true);
     });
-    return () => { mounted = false; active.current?.abort(); speechSession.current?.abort(); speechSession.current = null; Speech.stop(); };
+    return () => { mounted = false; speechAttempt.current++; active.current?.abort(); speechSession.current?.abort(); speechSession.current = null; Speech.stop(); };
   }, []);
   useEffect(() => {
     if (!loaded) return;
     saveConversation({ language, level, topic, messages }).catch(() => setError("Gesprächsverlauf konnte nicht gespeichert werden."));
   }, [language, level, topic, messages, loaded]);
   const stopDictation = useCallback(() => {
+    speechAttempt.current++;
     const current = speechSession.current;
     speechSession.current = null;
     current?.abort();
@@ -49,37 +52,51 @@ export default function ConversationScreen() {
     setSpeechStarting(false);
     setSpeechConsentVisible(false);
   }, []);
-  const startDictation = () => {
-    if (!webSpeechAvailable || speechSession.current) return;
+  const startDictation = async () => {
+    if (!speechAvailable || speechSession.current || speechStarting) return;
+    const attempt = ++speechAttempt.current;
     setSpeechConsentVisible(false);
+    setSpeechStarting(true);
     setError("");
     Speech.stop();
-    const languageTag = LANGUAGES.find((item) => item.code === language)?.locale ?? "en-US";
-    const session = createWebSpeechSession(languageTag, {
+    const locale = LANGUAGES.find((item) => item.code === language)?.locale ?? "en-US";
+    const callbacks = {
       onStart: () => {
-        if (speechSession.current === session) { setSpeechStarting(false); setSpeechListening(true); }
+        if (speechAttempt.current === attempt) { setSpeechStarting(false); setSpeechListening(true); }
       },
-      onText: (text) => {
-        if (speechSession.current === session) setInput((previous) => (previous.trim() ? previous.trim() + " " + text : text).slice(0, 1000));
+      onText: (text: string) => {
+        if (speechAttempt.current === attempt) setInput((previous) => (previous.trim() ? previous.trim() + " " + text : text).slice(0, 1000));
       },
       onEnd: () => {
-        if (speechSession.current === session) {
-          speechSession.current = null; setSpeechStarting(false); setSpeechListening(false);
+        if (speechAttempt.current === attempt) {
+          speechSession.current = null;
+          setSpeechStarting(false);
+          setSpeechListening(false);
         }
       },
-      onError: (reason) => {
-        if (speechSession.current !== session) return;
-        setError(reason === "permission" ? "Mikrofonzugriff verweigert."
-          : reason === "network" ? "Spracherkennung benötigt derzeit eine Netzwerkverbindung."
+      onError: (reason: "permission" | "network" | "no-speech" | "unavailable") => {
+        if (speechAttempt.current !== attempt) return;
+        setError(reason === "permission" ? "Mikrofon oder Spracherkennung wurde nicht erlaubt."
+          : reason === "network" ? "Der Spracherkennungsdienst ist nicht erreichbar."
           : reason === "no-speech" ? "Keine Sprache erkannt. Bitte erneut versuchen."
           : "Spracherkennung nicht verfügbar.");
       },
-    });
-    if (!session) { setError("Dieser Browser unterstützt die Spracheingabe nicht."); return; }
-    speechSession.current = session;
-    setSpeechStarting(true);
-    try { session.start(); }
-    catch { stopDictation(); setError("Die Spracherkennung konnte nicht gestartet werden."); }
+    };
+    try {
+      const session = Platform.OS === "web"
+        ? createWebSpeechSession(locale, callbacks)
+        : await createNativeSpeechSession(locale, callbacks);
+      if (speechAttempt.current !== attempt) { session?.abort(); return; }
+      if (!session) throw new Error("Unsupported speech recognizer");
+      speechSession.current = session;
+      await session.start();
+    } catch {
+      if (speechAttempt.current !== attempt) return;
+      stopDictation();
+      setError(Platform.OS === "web"
+        ? "Die Web-Spracherkennung konnte nicht gestartet werden."
+        : "Native Spracherkennung nicht verfügbar. Bitte eine neue Development-App mit dem Sprachmodul erstellen und installieren.");
+    }
   };
   const cancel = useCallback(() => {
     active.current?.abort();
@@ -137,7 +154,7 @@ export default function ConversationScreen() {
       <Pressable onPress={cancel} accessibilityRole="button" accessibilityLabel="Abbrechen"><Ionicons name="stop-circle-outline" size={27} color={colors.text} /></Pressable>
     </View>
     <ScrollView ref={scroll} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.notice, { color: colors.text }]}>OFFLINE-DEMO · Keine echte KI. Antworten sind vorbereitete Übungssätze. Keine Grammatikprüfung oder Transkription.</Text>
+      <Text style={[styles.notice, { color: colors.text }]}>OFFLINE-DEMO · Keine echte KI. Antworten sind vorbereitete Übungssätze. Keine Grammatikprüfung. Diktat optional nach Einwilligung.</Text>
       <Text style={{ color: colors.textMuted }}>Sprache</Text>
       <View style={styles.row}>{LANGUAGES.map((l) => chip(l.name, language === l.code, () => change("language", l.code)))}</View>
       <Text style={{ color: colors.textMuted }}>Niveau</Text>
@@ -153,15 +170,17 @@ export default function ConversationScreen() {
       {!!error && <Text accessibilityRole="alert" style={{ color: colors.rose }}>{error}</Text>}
       <Text style={{ color: colors.textMuted, fontSize: 12 }}>
         {Platform.OS === "web"
-          ? "Optionales Web-Diktat: Nur mit Einwilligung. Je nach Browser wird Audio an dessen Spracherkennungsdienst übertragen. Der erkannte Text wird nicht automatisch gesendet."
-          : "Native Spracherkennung ist noch nicht integriert. Es werden keine Mikrofonaufnahmen gemacht oder übertragen."}
+          ? "Optionales Web-Diktat: Nach Einwilligung kann der Browser das Mikrofon nutzen und Audio an seinen Spracherkennungsdienst übertragen."
+          : "Optionales iOS-/Android-Diktat: Nach Einwilligung kann der Systemdienst das Mikrofon nutzen und Audio je nach Gerät auch online verarbeiten. Erfordert einen neuen Development-Build."}
+        {" "}Erkannter Text wird nur als Entwurf eingefügt und nicht automatisch gesendet.
         {" "}Gesprächsverlauf bleibt lokal gespeichert.
       </Text>
       {speechConsentVisible && <View style={[styles.consent, { backgroundColor: colors.surface, borderColor: colors.sky }]}>
-        <Text style={{ color: colors.text, fontWeight: "700" }}>Web-Spracherkennung erlauben?</Text>
+        <Text style={{ color: colors.text, fontWeight: "700" }}>Spracheingabe erlauben?</Text>
         <Text style={{ color: colors.text }}>
-          Nach deiner Zustimmung kann der Browser das Mikrofon öffnen und Audio an seinen Erkennungsdienst übertragen.
-          Das kann Internet erfordern. RED POLY sendet selbst kein Audio an einen KI-Anbieter.
+          Nach deiner Zustimmung wird das Mikrofon nur für dieses Diktat gestartet. iOS, Android oder dein Browser
+          können Sprache bei einem externen Systemdienst verarbeiten; das kann Internet erfordern.
+          RED POLY startet keinen kostenpflichtigen KI-Dienst.
           Das Ergebnis wird nur in das Eingabefeld eingefügt, nicht automatisch gesendet.
         </Text>
         <View style={styles.row}>
@@ -172,16 +191,16 @@ export default function ConversationScreen() {
     </ScrollView>
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={[styles.composer, { borderTopColor: colors.neutral200 }]}>
-        <Pressable disabled={!webSpeechAvailable || !loaded || !messages.length || pending}
+        <Pressable disabled={!speechAvailable || !loaded || !messages.length || pending}
           onPress={() => {
-            if (speechSession.current) stopDictation();
+            if (speechSession.current || speechStarting || speechListening) stopDictation();
             else if (speechApproved) startDictation();
             else setSpeechConsentVisible(true);
           }}
           accessibilityRole="button"
-          accessibilityLabel={!webSpeechAvailable ? "Spracherkennung auf dieser Plattform nicht verfügbar" : speechListening || speechStarting ? "Diktat abbrechen" : "Diktat starten"}
+          accessibilityLabel={!speechAvailable ? "Spracherkennung auf dieser Plattform nicht verfügbar" : speechListening || speechStarting ? "Diktat abbrechen" : "Diktat starten"}
           style={styles.mic}>
-          <Ionicons name={!webSpeechAvailable ? "mic-off-outline" : speechListening || speechStarting ? "stop-circle-outline" : "mic-outline"} size={24} color={speechListening ? colors.rose : colors.textMuted} />
+          <Ionicons name={!speechAvailable ? "mic-off-outline" : speechListening || speechStarting ? "stop-circle-outline" : "mic-outline"} size={24} color={speechListening ? colors.rose : colors.textMuted} />
         </Pressable>
         <TextInput value={input} onChangeText={setInput} placeholder="Schreibe eine Antwort …" placeholderTextColor={colors.textMuted} style={[styles.input, { color: colors.text, borderColor: colors.neutral200 }]} multiline maxLength={1000} editable={messages.length > 0 && !pending} />
         <Pressable onPress={send} disabled={!input.trim() || !messages.length || pending} accessibilityRole="button" accessibilityLabel="Text senden" style={styles.mic}><Ionicons name="send" size={23} color={colors.green} /></Pressable>
