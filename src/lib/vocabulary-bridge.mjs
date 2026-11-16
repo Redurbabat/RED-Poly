@@ -5,6 +5,7 @@
  */
 import {
   PROGRESS_STORAGE_KEY,
+  PROGRESS_STORAGE_VERSION,
   createProgressBackup,
   migrateProgressData,
   restoreProgressBackupToStorage,
@@ -196,14 +197,39 @@ export async function importWordPeckerVocabularyToStorage(storage) {
   assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
     "vocabulary changed during import; retry while edits are paused");
 
-  await restoreProgressBackupToStorage(createProgressBackup(merged), storage, original);
+  const mergedBackup = createProgressBackup(merged);
+  await restoreProgressBackupToStorage(mergedBackup, storage, original);
 
-  const persisted = decodeStoredProgress(await storage.getItem(PROGRESS_STORAGE_KEY));
-  assert(JSON.stringify(persisted.courses) === JSON.stringify(merged.courses) &&
-    JSON.stringify(persisted.vocabularyLists) === JSON.stringify(merged.vocabularyLists) &&
-    persisted.streak === merged.streak, "persisted data verification");
-  assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
-    "legacy vocabulary changed after import");
+  // A post-commit verification may fail if the legacy key changes at the
+  // very end of the import. Do not report failure with changed progress-v2
+  // on disk and stale data in Zustand. Roll back only if the destination
+  // still contains the exact payload this operation wrote.
+  try {
+    const persisted = decodeStoredProgress(await storage.getItem(PROGRESS_STORAGE_KEY));
+    assert(JSON.stringify(persisted.courses) === JSON.stringify(merged.courses) &&
+      JSON.stringify(persisted.vocabularyLists) === JSON.stringify(merged.vocabularyLists) &&
+      persisted.streak === merged.streak, "persisted data verification");
+    assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
+      "legacy vocabulary changed after import");
+  } catch (error) {
+    try {
+      const expected = JSON.stringify({
+        state: JSON.parse(mergedBackup).state,
+        version: PROGRESS_STORAGE_VERSION,
+      });
+      assert(await storage.getItem(PROGRESS_STORAGE_KEY) === expected,
+        "post-commit rollback incomplete; another progress snapshot was written");
+      await storage.setItem(PROGRESS_STORAGE_KEY, original);
+      assert(await storage.getItem(PROGRESS_STORAGE_KEY) === original,
+        "post-commit rollback verification");
+    } catch (rollbackError) {
+      throw new Error(
+        "Invalid WordPecker migration: post-commit verification failed and rollback incomplete; original checkpoint retained",
+        { cause: rollbackError },
+      );
+    }
+    throw error;
+  }
 
   return {
     listsAdded: merged.vocabularyLists.length - prior.vocabularyLists.length,
