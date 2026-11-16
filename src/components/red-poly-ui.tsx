@@ -4,6 +4,7 @@
  * Optical Glass is an optional visual treatment, never a contrast requirement.
  */
 import React, { useEffect, useState, type ReactNode } from "react";
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from "expo-glass-effect";
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -33,7 +34,7 @@ export function PolyCard({ children, style }: SurfaceProps) {
   );
 }
 
-/** Translucent on supported compositors; an opaque, legible fallback elsewhere. */
+/** Native Liquid Glass when supported; transparent or opaque fallback elsewhere. */
 export function PolyGlassSurface({ children, style }: SurfaceProps) {
   const c = useThemeColors();
   const scheme = useResolvedScheme();
@@ -47,12 +48,32 @@ export function PolyGlassSurface({ children, style }: SurfaceProps) {
     const subscription = AccessibilityInfo.addEventListener("reduceTransparencyChanged", setReduceTransparency);
     return () => { active = false; subscription.remove(); };
   }, []);
-  const translucent = !reduceTransparency && Platform.OS !== "web";
+  // SDK 56: the native effect requires iOS 26, compatible Xcode and a live API.
+  // Older native builds, Android and web must never depend on GlassView.
+  let nativeGlassAvailable = false;
+  if (Platform.OS === "ios" && !reduceTransparency) {
+    try {
+      nativeGlassAvailable = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
+    } catch {
+      nativeGlassAvailable = false;
+    }
+  }
+  if (nativeGlassAvailable) {
+    return (
+      <GlassView
+        glassEffectStyle="regular"
+        colorScheme={scheme}
+        style={[styles.card, { borderColor: c.neutral200 }, style]}
+      >
+        {children}
+      </GlassView>
+    );
+  }
   return (
     <View style={[styles.card, {
-      backgroundColor: translucent
-        ? scheme === "dark" ? "rgba(27,39,46,0.94)" : "rgba(255,255,255,0.94)"
-        : c.surface,
+      backgroundColor: reduceTransparency || Platform.OS === "web"
+        ? c.surface
+        : scheme === "dark" ? "rgba(27,39,46,0.94)" : "rgba(255,255,255,0.94)",
       borderColor: c.neutral200,
     }, style]}>
       {children}

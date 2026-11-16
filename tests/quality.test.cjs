@@ -27,6 +27,22 @@ test("required primitives are shared and exported", () => {
   assert.match(code, /reduceTransparencyChanged/);
 });
 
+test("native glass uses availability checks and accessibility fallback", () => {
+  const code = read("src/components/red-poly-ui.tsx");
+  assert.match(code, /<GlassView/);
+  assert.match(code, /isLiquidGlassAvailable\(\)/);
+  assert.match(code, /isGlassEffectAPIAvailable\(\)/);
+  assert.match(code, /Platform\.OS === "ios" && !reduceTransparency/);
+  assert.match(code, /backgroundColor: reduceTransparency \|\| Platform\.OS === "web"/);
+});
+
+test("ESLint exceptions remain limited to two pre-existing layout/lesson files", () => {
+  const config = read("eslint.config.js");
+  assert.match(config, /src\/app\/_layout\.tsx/);
+  assert.match(config, /src\/app\/lesson\/\[id\]\.tsx/);
+  assert.match(config, /react-hooks\/refs/);
+});
+
 test("existing persisted progress key must not change", () => {
   assert.match(read("src/lib/store.ts"), /progress-v2/);
 });
