@@ -191,6 +191,11 @@ export async function restoreProgressBackupToStorage(serialized, storage, expect
       assert(await storage.getItem(RESTORE_CHECKPOINT_KEY) === original, "checkpoint verification");
     }
   }
+  // Creating/verifying the checkpoint involves asynchronous storage calls.
+  // A newer lesson result can arrive during that window even after the
+  // initial optimistic check. Never commit an outdated snapshot over it.
+  assert(await storage.getItem(PROGRESS_STORAGE_KEY) === original,
+    "progress changed during import; retry while edits are paused");
   const newValue = JSON.stringify({ state: snapshot(nextState), version: PROGRESS_STORAGE_VERSION });
   try {
     await storage.setItem(PROGRESS_STORAGE_KEY, newValue);
