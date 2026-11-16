@@ -1,0 +1,54 @@
+name: RED POLY Core Data Regression
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/progress-data.mjs'
+      - 'src/lib/progress-data.d.mts'
+      - 'src/lib/vocabulary-bridge.mjs'
+      - 'src/lib/vocabulary-bridge.d.mts'
+      - 'src/lib/progress-write-guard.mjs'
+      - 'src/lib/progress-write-guard.d.mts'
+      - 'src/lib/progress-storage.mjs'
+      - 'src/lib/progress-storage.d.mts'
+      - 'src/lib/progress-transfer.mjs'
+      - 'src/lib/progress-transfer.d.mts'
+      - 'src/lib/store.ts'
+      - 'tests/progress-data.test.mjs'
+      - 'tests/vocabulary-bridge.test.mjs'
+      - 'tests/progress-write-guard.test.mjs'
+      - 'tests/progress-storage.test.mjs'
+      - 'tests/progress-transfer.test.mjs'
+      - 'package.json'
+      - 'tsconfig.json'
+      - '.github/workflows/core-data.yml'
+  push:
+    branches: [agent/01-core-data]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core-data:
+    name: Versioned progress and restore tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run core data regression suite
+        run: npm run test:core
+      - name: Setup Bun for Expo TypeScript
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.5'
+      - name: Install locked Expo dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript typecheck
+        run: bunx tsc --noEmit
