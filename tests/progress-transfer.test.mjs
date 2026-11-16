@@ -283,3 +283,23 @@ test("invalid WordPecker input or unpersisted progress aborts before writing", a
     /finish loading first/);
   ctx.guard.assertUnlocked();
 });
+
+
+test("restore rollback refuses to overwrite newer external XP after failed rehydration", async () => {
+  const ctx = device();
+  const replacement = initial();
+  replacement.streak = 30;
+  ctx.options.rehydrate = async () => {
+    const newest = JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY));
+    newest.state.courses["es-en"].xp = 999;
+    ctx.disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(newest));
+    throw new Error("hydration interrupted by external writer");
+  };
+  await assert.rejects(
+    restoreVerifiedProgressBackup(createProgressBackup(replacement), ctx.options),
+    /rollback incomplete/
+  );
+  assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+  assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
+  ctx.guard.assertUnlocked();
+});
