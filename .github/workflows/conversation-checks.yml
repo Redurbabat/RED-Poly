@@ -8,6 +8,7 @@ on:
       - "app.json"
       - "eas.json"
       - "tests/conversation-app-identity.test.mjs"
+      - "tests/conversation-native-config.test.mjs"
       - "package.json"
       - "bun.lock"
       - "src/app/(tabs)/practice.tsx"
@@ -39,3 +40,7 @@ jobs:
         run: bunx tsc --noEmit --project tsconfig.conversation.json
       - name: Validate Expo native plugin configuration
         run: bunx expo config --type prebuild --json > /dev/null
+      - name: Validate evaluated iOS and Android permission manifests
+        run: |
+          bunx expo config --type introspect --json > /tmp/red-poly-introspect.json
+          node tests/conversation-native-config.test.mjs /tmp/red-poly-introspect.json

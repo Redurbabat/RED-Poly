@@ -44,3 +44,7 @@
 - **Data warning:** Changing the bundle/package ID creates a separate app installation and storage sandbox. Existing `progress-v2` records from older installations are **not** automatically migrated. Preserve original installations, identifiers and backups until a reviewed export/import or migration path exists.
 - Existing icons and other Lingo assets are unchanged and their rights remain subject to review; no release is authorized by this change.
 - Device installs, app upgrade, signing, and App Store publishing remain **NOT TESTED**. CI covers identity assertions, native Expo config generation, offline unit tests and TypeScript only.
+
+## Native configuration introspection
+- On pull requests, CI executes `expo config --type introspect --json`, then asserts the evaluated iOS `NSMicrophoneUsageDescription` / `NSSpeechRecognitionUsageDescription` and the Android `RECORD_AUDIO` permission.
+- This tests actual evaluated config plugins, **not** an Xcode compile, signed IPA, Android APK, provisioning profile or a device permission popup.
