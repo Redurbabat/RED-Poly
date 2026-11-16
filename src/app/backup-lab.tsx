@@ -25,6 +25,7 @@ export default function BackupLabRoute() {
 function BackupLab() {
   const c = useThemeColors();
   const [restores, setRestores] = useState(0);
+  const [failNextExport, setFailNextExport] = useState(false);
   const [failNextRestore, setFailNextRestore] = useState(false);
   const [imports, setImports] = useState(0);
   return (
@@ -43,11 +44,22 @@ function BackupLab() {
         />
         <PolyButton
           tone="secondary"
+          label="Nächsten Export fehlschlagen lassen"
+          onPress={() => setFailNextExport(true)}
+        />
+        <PolyButton
+          tone="secondary"
           label="Nächste Wiederherstellung fehlschlagen lassen"
           onPress={() => setFailNextRestore(true)}
         />
         <PolyBackupTransfer
-          exportPersistedBackup={async () => DEMO_BACKUP}
+          exportPersistedBackup={async () => {
+            if (failNextExport) {
+              setFailNextExport(false);
+              throw new Error("Simulierter Export-Fehler");
+            }
+            return DEMO_BACKUP;
+          }}
           restorePersistedBackup={async () => {
             if (failNextRestore) {
               setFailNextRestore(false);

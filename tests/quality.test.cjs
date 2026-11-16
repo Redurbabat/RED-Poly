@@ -116,3 +116,16 @@ test("SRS review logic preserves boundaries and due scheduling", () => {
   assert.equal(failed.interval, 0);
   assert.ok(failed.ease >= 1.3);
 });
+
+test("export failure clears stale backup and native share is user-initiated only", () => {
+  const code = read("src/components/poly-backup-transfer.tsx");
+  const exportStart = code.indexOf('onPress={() => execute("export"');
+  const clear = code.indexOf('setExported("");', exportStart);
+  const exportCall = code.indexOf("await exportPersistedBackup()", exportStart);
+  assert.ok(exportStart >= 0 && clear > exportStart && clear < exportCall,
+    "remove stale snapshot before awaiting the new export");
+  assert.match(code, /Platform\.OS !== "web"/);
+  assert.match(code, /Share\.share\(/);
+  assert.match(code, /execute\("share"/);
+  assert.match(code, /label="Exportanzeige löschen"/);
+});

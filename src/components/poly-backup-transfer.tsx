@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -24,7 +25,7 @@ export type PolyBackupTransferHandlers = {
   importLegacyVocabulary?: () => Promise<{ listsAdded: number; wordsAdded: number }>;
 };
 
-type Operation = "export" | "restore" | "import" | null;
+type Operation = "export" | "restore" | "import" | "share" | null;
 
 export { checkBackupEnvelope } from "@/components/poly-backup-envelope";
 
@@ -61,6 +62,8 @@ export function PolyBackupTransfer({
         setError(
           kind === "export"
             ? "Export fehlgeschlagen. Bitte gespeicherten Lernstand prüfen und erneut versuchen."
+            : kind === "share"
+              ? "Teilen nicht möglich. Bitte Backup manuell kopieren."
             : kind === "restore"
               ? "Wiederherstellung fehlgeschlagen. Bitte Backup und aktuellen Lernstand prüfen."
               : "Wortlistenimport fehlgeschlagen. Bestehende Daten nicht löschen."
@@ -122,6 +125,9 @@ export function PolyBackupTransfer({
           disabled={isBusy}
           loading={operation === "export"}
           onPress={() => execute("export", async () => {
+            // Hide a previous snapshot immediately. A failed export must never
+            // present old bytes as if they were freshly verified.
+            setExported("");
             const result = await exportPersistedBackup();
             const validation = checkBackupEnvelope(result);
             if (validation) throw new Error(validation);
@@ -140,6 +146,26 @@ export function PolyBackupTransfer({
               selectTextOnFocus
               style={[styles.input, styles.jsonField, { color: c.text, backgroundColor: c.surface, borderColor: c.neutral300 }]}
             />
+            <Text style={{ color: c.roseDark }}>
+              Ein Backup enthält persönliche Lerndaten. Nur an einen privaten,
+              vertrauenswürdigen Speicherort weitergeben.
+            </Text>
+            {Platform.OS !== "web" && (
+              <PolyButton
+                tone="secondary"
+                label="Backup über System teilen"
+                disabled={isBusy}
+                loading={operation === "share"}
+                onPress={() => execute("share", async () => {
+                  // Native share sheet is user-initiated, never automatic.
+                  // Its completion does not prove the destination saved data.
+                  await Share.share(
+                    { message: exported, title: "RED POLY Backup" },
+                    { dialogTitle: "RED POLY Backup sichern" },
+                  );
+                })}
+              />
+            )}
             <PolyButton
               tone="secondary"
               label="Exportanzeige löschen"
@@ -200,7 +226,8 @@ export function PolyBackupTransfer({
       {operation !== null && (
         <Text accessibilityLiveRegion="polite" style={{ color: c.textMuted }}>
           {operation === "export" ? "Export wird geprüft" :
-            operation === "restore" ? "Wiederherstellung läuft" : "Wortlisten werden importiert"}
+            operation === "share" ? "System-Teilen wird geöffnet" :
+              operation === "restore" ? "Wiederherstellung läuft" : "Wortlisten werden importiert"}
         </Text>
       )}
       {!!feedback && (

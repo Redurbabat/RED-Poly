@@ -141,6 +141,17 @@ async function main() {
     await page.getByRole("button", { name: "Backup erzeugen" }).click();
     const exported = await page.getByRole("textbox", { name: "Exportiertes Backup" }).inputValue();
     assert.equal(JSON.parse(exported).format, "red-poly-progress");
+    // A fresh export failure must remove any previously displayed snapshot;
+    // otherwise users might accidentally preserve an out-of-date backup.
+    await page.getByRole("button", { name: "Nächsten Export fehlschlagen lassen" }).click();
+    await page.getByRole("button", { name: "Backup erzeugen" }).click();
+    await page.getByText("Export fehlgeschlagen. Bitte gespeicherten Lernstand prüfen und erneut versuchen.").waitFor();
+    assert.equal(await page.getByRole("textbox", { name: "Exportiertes Backup" }).count(), 0);
+    await page.getByRole("button", { name: "Backup erzeugen" }).click();
+    const recoveredExport = await page.getByRole("textbox", { name: "Exportiertes Backup" }).inputValue();
+    assert.equal(recoveredExport, exported, "retry must produce a verified backup");
+    assert.equal(await page.getByRole("button", { name: "Backup über System teilen" }).count(), 0,
+      "web must not display a native-only share control");
 
     const incomingField = page.getByRole("textbox", { name: "Backup JSON zum Wiederherstellen" });
     await incomingField.fill("{broken");
@@ -187,13 +198,17 @@ async function main() {
     await page.getByRole("button", { name: "Wortlistenimport vorbereiten" }).click();
     await page.getByRole("button", { name: "Wortlisten importieren" }).click();
     await page.getByText("Test-Importe: 1").waitFor();
+
+    await page.getByRole("button", { name: "Exportanzeige löschen" }).click();
+    assert.equal(await page.getByRole("textbox", { name: "Exportiertes Backup" }).count(), 0);
+    await page.getByText("Exportanzeige gelöscht.").waitFor();
     await page.screenshot({
       path: path.join(outputDir, "backup-lab-simulation.png"),
       fullPage: true,
     });
 
     assert.deepEqual(exceptions, [], "browser must not raise unhandled page errors");
-    console.log("PASS: Chromium onboarding persistence, design lab, oversized-backup guard, failed restore/retry and mock import");
+    console.log("PASS: Chromium onboarding, design lab, export failure/cleanup, restore failure/retry and mock import");
     console.log("Screenshots: " + outputDir);
   } finally {
     await browser.close();
