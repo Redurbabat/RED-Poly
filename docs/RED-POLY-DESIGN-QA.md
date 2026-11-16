@@ -62,3 +62,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Der Test soll echte Web-Interaktionen überprüfen, **nicht** iOS-/Android-Touchverhalten, VoiceOver oder native Liquid-Glass-Darstellung. Ergebnis erst nach erfolgreich beendetem Workflow als bestanden bezeichnen.
 
 - Erster Browser-CI-Versuch [43816359138](https://github.com/Redurbabat/RED-Poly/actions/runs/43816359138) erreichte den Browser-Test nicht: `curl` fragte ausschliesslich `127.0.0.1:8081` ab, Expo meldete nur `localhost:8081` (IPv4-/IPv6-Bindung). Zusätzlich erschien eine nicht blockierende Fehlermeldung zum Linux-Sandbox-Helper des React Native DevTools. Beide lokalen URLs für Test und Readiness-Check auf `localhost` ausgerichtet und Portdiagnose im Fehlerfall ergänzt. **Kein Browser-Test-Erfolg aus dem fehlgeschlagenen Run behauptet.**
+
+## Browser-Testbefund: Tab-Auswahl (16.11.2026)
+- Der erstmals tatsächlich ausgeführte Chromium-Test [43817287097](https://github.com/Redurbabat/RED-Poly/actions/runs/43817287097) konnte die bestehende Onboarding-Route, die Design-Testseite, Buttons, deaktivierte Aktionen, Modal-Dialoge sowie Validierungsfehler real bedienen. An der `PolyNavItem`-Auswahl scheiterte die Prüfung: trotz `accessibilityState.selected` wurde in React Native Web **kein** `aria-selected`-Attribut ausgegeben.
+- `PolyNavItem` setzt deshalb nun `aria-selected={!!selected}` zusätzlich zum nativen Accessibility-State. Diese Änderung wird durch einen Strukturtest und den realen Chromium-Interaktionstest abgesichert.
+- Der Screenshot-Upload der CI aktiviert `include-hidden-files: true`, weil die Artefakte bewusst im isolierten Ordner `.ci-browser-artifacts/` gespeichert werden.

@@ -147,6 +147,7 @@ export function PolyNavItem({
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: !!selected }}
+      aria-selected={!!selected}
       onPress={() => { haptics.tap(); onPress(); }}
       style={({ pressed }) => [styles.nav, {
         backgroundColor: selected ? c.selectedBg : c.surface,

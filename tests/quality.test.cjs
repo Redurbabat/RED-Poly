@@ -27,6 +27,12 @@ test("required primitives are shared and exported", () => {
   assert.match(code, /reduceTransparencyChanged/);
 });
 
+test("tab selection exposes both native and web accessibility state", () => {
+  const code = read("src/components/red-poly-ui.tsx");
+  assert.match(code, /accessibilityState=\{\{ selected: !!selected \}\}/);
+  assert.match(code, /aria-selected=\{!!selected\}/);
+});
+
 test("native glass uses availability checks and accessibility fallback", () => {
   const code = read("src/components/red-poly-ui.tsx");
   assert.match(code, /<GlassView/);
