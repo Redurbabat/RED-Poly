@@ -112,10 +112,10 @@ await restoreProgressBackup(backupJSON);
 
 ```bash
 npm run test:core
-# äquivalent: node --test tests/progress-data.test.mjs
+# äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs
 ```
 
-Dreiundzwanzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration einschliesslich Konflikte, Historie, simuliertem Offline-Neustart, verifiziertem Speicherimport, idempotentem Wiederholen und dem Abbruch bei konkurrierenden Änderungen. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**18 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43812725490](https://github.com/Redurbabat/RED-Poly/actions/runs/43812725490)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Dreiundzwanzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration einschliesslich Konflikte, Historie, simuliertem Offline-Neustart, verifiziertem Speicherimport, idempotentem Wiederholen und dem Abbruch bei konkurrierenden Änderungen. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**23 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43813494380](https://github.com/Redurbabat/RED-Poly/actions/runs/43813494380)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, UI zum Export/Restore mit Schreibsperre, vollständiger Typecheck mit Projektabhängigkeiten und Endgerät-Migrationstest gegen eine sichere Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git).
 
