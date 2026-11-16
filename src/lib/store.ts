@@ -9,13 +9,16 @@ import {
 } from "./vocabulary-bridge.mjs";
 import { createProgressWriteGuard } from "./progress-write-guard.mjs";
 import {
+  exportVerifiedProgressBackup as exportGuardedBackup,
+  restoreVerifiedProgressBackup as restoreGuardedBackup,
+} from "./progress-transfer.mjs";
+import {
   PROGRESS_STORAGE_KEY,
   PROGRESS_STORAGE_VERSION,
   addVocabularyList as insertVocabularyList,
   addVocabularyWord as insertVocabularyWord,
   createProgressBackup,
   migrateProgressData,
-  restoreProgressBackupToStorage,
 } from "./progress-data.mjs";
 import type {
   LanguagePreferences,
@@ -404,17 +407,34 @@ export function dueSrsWords(srs: Record<string, SrsEntry> = {}, now = Date.now()
  * The caller chooses where to save/share the returned JSON.
  */
 export function exportProgressBackup(): string {
+  // Compatibility API: synchronous in-memory snapshot, not disk-verified.
+  progressWriteGuard.assertUnlocked();
   return createProgressBackup(useProgress.getState());
 }
 
+/** Safe, disk-verified backup: waits for pending Zustand persistence writes. */
+export async function exportPersistedProgressBackup(): Promise<string> {
+  return exportGuardedBackup({
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+  });
+}
+
 /**
- * Explicit restore operation, NOT called automatically on startup.
- * Only invoke while learning edits are paused; an original-byte checkpoint
- * is retained under progress-v2-restore-checkpoint for recovery.
+ * Explicit, guarded restore; never called automatically.
+ * Drains pending writes and blocks normal learning actions until the saved
+ * data is verified and the in-memory Zustand state has been rehydrated.
  */
 export async function restoreProgressBackup(serialized: string): Promise<void> {
-  await restoreProgressBackupToStorage(serialized, AsyncStorage);
-  await useProgress.persist.rehydrate();
+  await restoreGuardedBackup(serialized, {
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+    rehydrate: () => useProgress.persist.rehydrate(),
+  });
 }
 
 
