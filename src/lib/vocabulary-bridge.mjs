@@ -173,7 +173,12 @@ function decodeStoredProgress(raw) {
  * verifies the committed payload and rolls back on failed writes.
  * The legacy key is never changed and stays available for recovery.
  */
+let importInProgress = false;
+
 export async function importWordPeckerVocabularyToStorage(storage) {
+  assert(!importInProgress, "another vocabulary import is already running");
+  importInProgress = true;
+  try {
   const original = await storage.getItem(PROGRESS_STORAGE_KEY);
   const legacyRaw = await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY);
   assert(typeof legacyRaw === "string" && legacyRaw.length > 0,
@@ -205,4 +210,7 @@ export async function importWordPeckerVocabularyToStorage(storage) {
     wordsAdded: merged.vocabularyLists.reduce((n, list) => n + list.words.length, 0) -
       prior.vocabularyLists.reduce((n, list) => n + list.words.length, 0),
   };
+  } finally {
+    importInProgress = false;
+  }
 }
