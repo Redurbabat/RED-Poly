@@ -27,6 +27,15 @@ test("required primitives are shared and exported", () => {
   assert.match(code, /reduceTransparencyChanged/);
 });
 
+test("progress exposes a clamped numeric value to web screen readers", () => {
+  const code = read("src/components/red-poly-ui.tsx");
+  assert.match(code, /accessibilityValue=\{\{ min: 0, max: 100/);
+  assert.match(code, /aria-valuemin=\{0\}/);
+  assert.match(code, /aria-valuemax=\{100\}/);
+  assert.match(code, /aria-valuenow=\{Math\.round\(ratio \* 100\)\}/);
+  assert.match(code, /Math\.max\(0, Math\.min\(1,/);
+});
+
 test("tab selection exposes both native and web accessibility state", () => {
   const code = read("src/components/red-poly-ui.tsx");
   assert.match(code, /accessibilityState=\{\{ selected: !!selected \}\}/);

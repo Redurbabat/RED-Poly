@@ -218,6 +218,9 @@ export function PolyProgress({
       accessibilityRole="progressbar"
       accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: 100, now: Math.round(ratio * 100) }}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(ratio * 100)}
       style={styles.progressWrap}
     >
       <Text style={{ color: c.text }}>{label}</Text>
