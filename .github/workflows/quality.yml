@@ -45,6 +45,10 @@ jobs:
         run: |
           bun add --no-save --ignore-scripts playwright@1.56.1
           bunx playwright install --with-deps chromium
+      - name: Production web security smoke test – QA routes redirect
+        env:
+          CI: "1"
+        run: node tests/production-routes.browser.cjs
       - name: Browser E2E – onboarding and mobile/desktop design lab
         shell: bash
         env:

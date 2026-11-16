@@ -99,3 +99,9 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Drei neue Node-Tests prüfen zulässige, leere, defekte, inkompatible und zu grosse Backup-Hüllen.
 - Das isolierte `/backup-lab` simuliert neu einmalig einen fehlgeschlagenen Restore, ohne jemals echtes AsyncStorage zu verändern. Chromium prüft Fehlermeldung, **unverändertes Backup-Eingabefeld**, weiterhin **0** Test-Wiederherstellungen und einen anschliessenden erfolgreichen Neuversuch. Der Fehlerfall wird separat als Screenshot erfasst.
 - Kein Backup aus PR #5 wird hier automatisch installiert oder mit echten App-Daten getestet. Die reale Integration bleibt bis zur Freigabe des zentralen Datenkerns ausstehend.
+
+## Produktions-Webexport: gesperrte QA-Routen (16.11.2026)
+- **Sicherheitstest neu:** `tests/production-routes.browser.cjs` hostet den vorhandenen statischen Expo-Webexport lokal und startet Chromium, getrennt von `expo start --web` im Entwicklungsmodus.
+- Direkte Aufrufe von `/design-lab` und `/backup-lab` müssen im **Produktionsmodus** automatisch weiterleiten. Die echten Demo-Ansichten, inklusive der Zeichenfolge `NUR SIMULATION`, dürfen dabei nicht angezeigt werden.
+- Es werden Screenshots des umgeleiteten Produktionszustands erstellt. Dieser Test prüft die Laufzeitweiterleitung, nicht ob die Routen in der Exportdateiliste oder deren JS-Quelltext noch vorkommen. **Keine** tatsächlichen Lern- oder Backup-Daten werden gelesen oder geschrieben.
+- Ergebnis erst nach dem zugehörigen erfolgreichen GitHub-Actions-Lauf als bestätigt markieren.
