@@ -13,7 +13,9 @@ Implementierte Dateien:
 - `tests/progress-data.test.mjs` und `tests/vocabulary-bridge.test.mjs`: isolierte Regressionen.
 - `src/lib/vocabulary-bridge.mjs` / `.d.mts`: validierter Import aus dem getrennten Vokabelspeicher von Agent 02.
 - `src/lib/progress-write-guard.mjs` / `.d.mts`: lokale Schreibsperre mit Abschlussprüfung ausstehender Persistenzoperationen.
+- `src/lib/progress-storage.mjs` / `.d.mts`: serialisierter AsyncStorage-Adapter; verhindert, dass alte Zustand-Snapshots neuere XP-/SRS-Werte durch verspätete Writes überschreiben.
 - `tests/progress-write-guard.test.mjs`: überprüft Sperre, parallele Importe und fehlerhafte Speicheroperationen.
+- `tests/progress-storage.test.mjs`: prüft die Reihenfolge von zwei XP-Saves, Storage-Deletes, Write-Drain bei Migration und die Fehlerbehandlung.
 - `src/lib/progress-transfer.mjs` / `.d.mts`: überprüfter Geräte-Export und abgesicherter Restore mit gemeinsamer Schreibsperre.
 - `tests/progress-transfer.test.mjs`: prüft Backup aus verifiziertem Speicherstand, den Restore-Ablauf, erneutes Einlesen und Rollback.
 
@@ -24,6 +26,16 @@ Implementierte Dateien:
 - Alle bisherigen XP-, Lektions-, Serien-, Tagesaktivitäts- und SRS-Werte werden übernommen. Neue Felder: `vocabularyLists: []`, `languagePreferences: { uiLanguage: "en", nativeLanguage: "en" }`. Dies sind initiale Einstellungen, keine Änderung der vorhandenen Kursinhalte.
 - Für eine unbekannte Zukunftsversion oder inkonsistente Datensätze wird abgebrochen, statt eine leere Struktur über die alten Bytes zu schreiben. **Version-1-Datensätze müssen sämtliche Pflichtfelder enthalten**; nur alte Version-0-Daten erhalten Migrationsstandardwerte. Fehler müssen in einer UI separat angezeigt werden; **kein automatisches Reset**.
 - `courseId` bleibt das bestehende Sprachpaar, z. B. `es-en`. `targetCode` und `nativeCode` im Wortlistenobjekt bezeichnen Lern- und Quellsprache; `uiLanguage` ist unabhängig davon. Kurmancî/Sorani müssen getrennte Sprachcodes/Inhalte bekommen.
+
+## Reihenfolge von Lernfortschritts-Schreibvorgängen
+
+Zustand schreibt nach Lernaktionen asynchron nach AsyncStorage. Zwei schnelle Aktionen können dabei sonst ausser Reihenfolge abgeschlossen werden: Ein später fertig werdender alter Snapshot kann die neueren XP, Lektionen und SRS-Werte auf dem Gerät überschreiben.
+
+- `src/lib/store.ts` verwendet `createSerializedProgressStorage(AsyncStorage, progressWriteGuard)` für die bestehende `progress-v2`-Persistenz.
+- Die Operationen `setItem` und `removeItem` werden **in ihrer Aufrufreihenfolge** nacheinander ausgeführt. `getItem` bleibt ein direkter Lesezugriff.
+- Alle geplanten Schreibvorgänge werden sofort im `progressWriteGuard` registriert. Backup, Restore und Wortlistenimport warten, bis die Warteschlange vollständig abgeschlossen ist.
+- Ein fehlgeschlagener Schreibvorgang blockiert die Warteschlange nicht dauerhaft. Die Fehlermeldung bleibt jedoch im Guard erhalten: Ein anschliessender Import/Restore darf die Persistenz nicht als zuverlässig behandeln, solange ein früherer Speicherfehler ungeklärt ist.
+- Schutz gilt für die gemeinsame Zustand-Speicherschnittstelle **innerhalb dieses App-Prozesses**. Fremde direkte AsyncStorage-Schreiber und andere Prozesse sind nicht erfasst; AsyncStorage stellt keine atomare Transaktion bereit.
 
 ## Agent 02 — Vokabellisten / SRS
 
@@ -122,10 +134,10 @@ await restoreProgressBackup(backupJSON);
 
 ```bash
 npm run test:core
-# äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs
+# äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs tests/progress-storage.test.mjs
 ```
 
-Vierzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Änderungen vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**40 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43824146441](https://github.com/Redurbabat/RED-Poly/actions/runs/43824146441)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Vierundvierzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Änderungen vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**44 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43826192921](https://github.com/Redurbabat/RED-Poly/actions/runs/43826192921)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, sichtbare UI zum Export/Restore mit Schreibsperre, Geräte-Abnahme inklusive echten AsyncStorage-Persistenztests und eine Migration mit sicherer Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git). Root-TypeScript und die Core-CI laufen bereits grün; separate Integrationsprojekte prüfen sich weiterhin mit ihren eigenen Dependencies.
 
