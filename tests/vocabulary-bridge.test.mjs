@@ -329,3 +329,26 @@ test("changed legacy source after storage commit rolls back progress and retains
   assert.equal(disk.get(WORDPECKER_LEGACY_STORAGE_KEY), newerLegacy);
   assert.equal(disk.get("progress-v2-restore-checkpoint"), original);
 });
+
+
+test("post-commit failure refuses to roll back another writer's newer XP", async () => {
+  const { original, legacyRaw, disk, storage } = makeStorage();
+  let legacyReads = 0;
+  const racing = {
+    ...storage,
+    async getItem(key) {
+      if (key === WORDPECKER_LEGACY_STORAGE_KEY && ++legacyReads === 3) {
+        const modified = JSON.parse(disk.get(PROGRESS_STORAGE_KEY));
+        modified.state.courses["es-en"].xp = 999;
+        disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(modified));
+        disk.set(WORDPECKER_LEGACY_STORAGE_KEY, legacyRaw + " ");
+      }
+      return storage.getItem(key);
+    },
+  };
+  await assert.rejects(importWordPeckerVocabularyToStorage(racing),
+    /rollback incomplete/);
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+  assert.equal(disk.get("progress-v2-restore-checkpoint"), original);
+  assert.equal(disk.get(WORDPECKER_LEGACY_STORAGE_KEY), legacyRaw + " ");
+});
