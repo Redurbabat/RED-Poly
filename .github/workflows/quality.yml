@@ -39,6 +39,43 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: "1"
         run: bunx expo export --platform web --output-dir .ci-web-build
+      - name: Install Chromium for browser interaction test
+        run: |
+          bun add --no-save --ignore-scripts playwright@1.56.1
+          bunx playwright install --with-deps chromium
+      - name: Browser E2E – onboarding and mobile/desktop design lab
+        shell: bash
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: |
+          bunx expo start --web --localhost --port 8081 > /tmp/red-poly-expo-web.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8081/onboarding >/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -120 /tmp/red-poly-expo-web.log
+            exit 1
+          fi
+          node tests/design-lab.browser.cjs
+      - name: Upload mobile/desktop browser preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: red-poly-design-lab-browser
+          path: .ci-browser-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Expo iOS JS bundle smoke test (not a native IPA)
         env:
           EXPO_NO_TELEMETRY: "1"

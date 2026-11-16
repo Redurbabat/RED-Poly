@@ -55,3 +55,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Die Route zeigt interaktive Buttons, Deaktivierung, Ladezustand, Fehlermeldung mit Wiederholung, ein Eingabefeld mit Validierungsfehler, Auswahl, veränderbaren Fortschritt, Glasoberfläche und einen bestätigbaren/abbrechbaren Dialog.
 - **In Produktions-Builds:** sofortige Weiterleitung zu `/(tabs)` über `__DEV__`; die Route ist nicht als separates Produktmerkmal gedacht. Ein Test im Browser oder auf Hardware muss separat durchgeführt werden.
 - Manueller QA-Durchlauf: hell/dunkel, kleine Bildschirme, vergrösserte Schrift, Tastaturüberdeckung, Dialog-Fokus, Reduce Motion, Reduce Transparency und Screenreader. Ergebnisse erst nach Durchführung als bestanden markieren.
+
+## Realer Browser-Interaktionstest (in CI angelegt)
+- `tests/design-lab.browser.cjs` startet Chromium über Playwright bei einem echten Expo-Entwicklungsserver. Der Test durchläuft zunächst **die bestehende Onboarding-Oberfläche** (ohne Mock-Store/Umgehung), öffnet dann `/design-lab` und prüft Klicks, Textvalidierung, Dialog bestätigen/abbrechen, deaktivierte Buttons, Tab-Auswahl, Progress-Wert und Retry.
+- Zusätzlich werden mobile (390 × 844) und Desktop-Ansichten (1280 × 800) als Screenshots erfasst und als GitHub-Actions-Artefakt `red-poly-design-lab-browser` hochgeladen. Die Laufzeit-Tools `playwright@1.56.1` und Chromium werden nur in CI installiert, ohne das bestehende Bun-Lockfile zu verändern.
+- Der Test soll echte Web-Interaktionen überprüfen, **nicht** iOS-/Android-Touchverhalten, VoiceOver oder native Liquid-Glass-Darstellung. Ergebnis erst nach erfolgreich beendetem Workflow als bestanden bezeichnen.
