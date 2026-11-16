@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isDue, reviewWord, type SrsEntry } from "./srs";
+import { mergeWordPeckerVocabulary } from "./vocabulary-bridge.mjs";
 import {
   PROGRESS_STORAGE_KEY,
   PROGRESS_STORAGE_VERSION,
@@ -81,6 +82,8 @@ type ProgressState = {
 
   addVocabularyList: (list: VocabularyList) => void;
   addVocabularyWord: (listId: string, word: VocabularyWord) => void;
+  /** Explicit, additive migration from Agent 02's independent legacy data. */
+  importWordPeckerVocabulary: (legacy: unknown) => void;
   /** Agent 02/03 shared review entry point, explicitly scoped to a course. */
   reviewLearningItem: (courseId: string, reviewKey: string, correct: boolean) => void;
   setLanguagePreferences: (preferences: LanguagePreferences) => void;
@@ -236,6 +239,13 @@ export const useProgress = create<ProgressState>()(
         set((state) => ({
           vocabularyLists: insertVocabularyWord(state.vocabularyLists ?? [], listId, word),
         })),
+
+      // This action never deletes or rewrites red-poly:vocabulary-v1.
+      importWordPeckerVocabulary: (legacy) =>
+        set((state) => {
+          const merged = mergeWordPeckerVocabulary(state, legacy);
+          return { courses: merged.courses, vocabularyLists: merged.vocabularyLists };
+        }),
 
       reviewLearningItem: (courseId, reviewKey, correct) =>
         set((state) =>
