@@ -53,3 +53,7 @@
 - CI performs unsigned `expo prebuild --platform ios --no-install --clean` on Ubuntu to check native project generation without CocoaPods, Xcode, credentials or IPA output.
 - The generated iOS project and Info.plist are inspected for `com.redurbabat.redpoly`, the `redpoly` URL scheme and speech/microphone permission text.
 - Success proves config generation only, **not** compilation, signing, an installable build or physical-device dictation.
+
+## Local no-paid-account development path
+- See [`docs/IOS_LOCAL_DEVELOPMENT.md`](IOS_LOCAL_DEVELOPMENT.md): local Xcode/Personal Team instructions, consent verification and safe limitations.
+- CI separately exports the iOS JavaScript bundle without signing. Passing that check only confirms Metro can bundle app code, not native linking or physical-device installation.
