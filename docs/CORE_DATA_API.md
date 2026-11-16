@@ -64,18 +64,25 @@ useProgress.getState().reviewLearningItem(
 
 Agent 02 verwendet vor der Integration den lokalen AsyncStorage-Schlüssel `red-poly:vocabulary-v1` mit Wortfeldern `value`, `translation`, `example`, `correct`, `wrong`, `review`. Diese Daten sind **nicht** bereits Bestandteil von `progress-v2` und dürfen bei der Zusammenführung nicht verloren gehen.
 
-Agent 01 stellt einen **expliziten, reinen Importadapter** bereit:
+Agent 01 stellt zwei explizite Schnittstellen bereit:
+
+- **Reine Vorprüfung / In-Memory-Merge:** `mergeWordPeckerVocabulary(progress, legacy)` und `useProgress.getState().importWordPeckerVocabulary(legacy)`; dies ist **kein** Nachweis einer erfolgreichen AsyncStorage-Persistierung.
+- **Verifizierter, dauerhafter Speicherimport:** `importWordPeckerVocabularyToStorage(storage)` übernimmt Daten aus beiden lokalen Keys, erstellt eine Sicherheitskopie der ursprünglichen `progress-v2`-Bytes, prüft vor dem Schreiben auf zwischenzeitliche Änderungen, schreibt den gemeinsamen Zustand, liest ihn erneut und bestätigt die Lernhistorie.
 
 ```ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useProgress } from "@/lib/store";
+import { importWordPeckerVocabularyToStorage } from "@/lib/vocabulary-bridge.mjs";
 
-const raw = await AsyncStorage.getItem("red-poly:vocabulary-v1");
-if (raw !== null) {
-  // Erst nach ausdrücklicher Nutzeraktion und mit sichtbarer Fehlerbehandlung.
-  useProgress.getState().importWordPeckerVocabulary(JSON.parse(raw));
-}
+// NUR nach ausdrücklicher Nutzeraktion; gesamte Lern-UI sperren und
+// vorher sicherstellen, dass alle früheren Zustand-Schreibvorgänge beendet sind.
+// Bereits persistierte Daten in beiden Keys sind Voraussetzung.
+const result = await importWordPeckerVocabularyToStorage(AsyncStorage);
+await useProgress.persist.rehydrate(); // erst nach erfolgreicher Rückprüfung
+// result: { listsAdded, wordsAdded }
 ```
+
+**Grenze:** Diese API stellt keine atomare Transaktion mit parallelen Zustand-/AsyncStorage-Schreibenden bereit. Sie darf nicht während laufender Lektionen, Reviews, Backups oder noch ausstehender Zustand-Persistierung gestartet werden. Der bestehende AsyncStorage-Key `red-poly:vocabulary-v1` bleibt unverändert, auch bei Erfolg. Die UI muss Fehlermeldungen anzeigen und bei noch nicht persistierten Daten zuerst regulär speichern.
 
 - Die importierte Liste und jedes Wort erhalten ihre bisherigen stabilen IDs, Beispiele, Zeitstempel und Kategorie. Sprachcodes werden aus gültigen Kurs-IDs (z. B. `es-en`) abgeleitet.
 - `wordStats` und `srs` landen kursbezogen im einzigen Zustand unter `vocabularyReviewKey(listId, wordId)`. Bereits vorhandene XP, Lektionen und SRS werden nicht verändert.
@@ -108,7 +115,7 @@ npm run test:core
 # äquivalent: node --test tests/progress-data.test.mjs
 ```
 
-Achtzehn Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration einschliesslich Konflikte, Historie und simuliertem Offline-Neustart. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**18 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43812725490](https://github.com/Redurbabat/RED-Poly/actions/runs/43812725490)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Dreiundzwanzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration einschliesslich Konflikte, Historie, simuliertem Offline-Neustart, verifiziertem Speicherimport, idempotentem Wiederholen und dem Abbruch bei konkurrierenden Änderungen. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**18 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43812725490](https://github.com/Redurbabat/RED-Poly/actions/runs/43812725490)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, UI zum Export/Restore mit Schreibsperre, vollständiger Typecheck mit Projektabhängigkeiten und Endgerät-Migrationstest gegen eine sichere Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git).
 
