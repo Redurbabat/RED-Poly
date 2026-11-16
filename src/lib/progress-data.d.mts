@@ -18,6 +18,10 @@ export interface VocabularyWord {
   target: string;
   native: string;
   romanization?: string;
+  /** Preserved WordPecker metadata, when imported. */
+  example?: string;
+  createdAt?: number;
+  updatedAt?: number;
   source?: "manual" | "wordpecker" | "conversation";
 }
 export interface VocabularyList {
@@ -25,6 +29,7 @@ export interface VocabularyList {
   /** Existing Lingo course identifier, e.g. es-en. */
   courseId: string;
   title: string;
+  category?: string;
   /** ISO/BCP-47 language tag; independent of UI language. */
   targetCode: string;
   nativeCode: string;
