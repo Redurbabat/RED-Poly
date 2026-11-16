@@ -289,16 +289,24 @@ test("restore rollback refuses to overwrite newer external XP after failed rehyd
   const ctx = device();
   const replacement = initial();
   replacement.streak = 30;
+  const normalRehydrate = ctx.options.rehydrate;
+  let attempts = 0;
   ctx.options.rehydrate = async () => {
-    const newest = JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY));
-    newest.state.courses["es-en"].xp = 999;
-    ctx.disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(newest));
-    throw new Error("hydration interrupted by external writer");
+    if (++attempts === 1) {
+      const newest = JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY));
+      newest.state.courses["es-en"].xp = 999;
+      ctx.disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(newest));
+      throw new Error("hydration interrupted by external writer");
+    }
+    await normalRehydrate();
   };
   await assert.rejects(
     restoreVerifiedProgressBackup(createProgressBackup(replacement), ctx.options),
     /rollback incomplete/
   );
+  // A blind rollback would have succeeded on the second hydration attempt
+  // but lost this newer XP value. A safe restore never gets that far.
+  assert.equal(attempts, 1);
   assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
   assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
   ctx.guard.assertUnlocked();
