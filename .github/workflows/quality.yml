@@ -41,6 +41,14 @@ jobs:
         env:
           EXPO_NO_TELEMETRY: "1"
         run: bunx expo export --platform web --output-dir .ci-web-build
+      - name: Expo iOS JS bundle smoke test (not a native IPA)
+        env:
+          EXPO_NO_TELEMETRY: "1"
+        run: bunx expo export --platform ios --output-dir .ci-ios-bundle
+      - name: Expo Android JS bundle smoke test (not an APK)
+        env:
+          EXPO_NO_TELEMETRY: "1"
+        run: bunx expo export --platform android --output-dir .ci-android-bundle
       - name: PR diff whitespace check
         if: github.event_name == 'pull_request'
         run: git diff --check "${{ github.event.pull_request.base.sha }}" HEAD
