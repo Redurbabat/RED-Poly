@@ -136,7 +136,32 @@ export async function importVerifiedWordPeckerVocabulary(options) {
   const release = await options.guard.acquire();
   try {
     const { original } = await takeVerifiedSnapshot(options);
-    const result = await importWordPeckerVocabularyToStorage(options.storage);
+    let result;
+    try {
+      result = await importWordPeckerVocabularyToStorage(options.storage);
+    } catch (error) {
+      // The low-level importer normally rolls a failed commit back. If a
+      // concurrent direct writer changed progress before rollback, preserve
+      // that newer snapshot AND synchronize Zustand before releasing the
+      // normal learning-action lock.
+      const latest = await options.storage.getItem(PROGRESS_STORAGE_KEY);
+      if (latest !== original) {
+        try {
+          const persisted = decodePersisted(latest);
+          await options.rehydrate();
+          assert(equalSnapshots(options.getState(), persisted),
+            "rehydrated state differs from progress saved during failed import");
+          assert(await options.storage.getItem(PROGRESS_STORAGE_KEY) === latest,
+            "progress changed again during import recovery");
+        } catch (recoveryError) {
+          throw new Error(
+            "RED POLY progress transfer: failed import left unverified app state; reload progress before learning",
+            { cause: recoveryError },
+          );
+        }
+      }
+      throw error;
+    }
     const importedBytes = await options.storage.getItem(PROGRESS_STORAGE_KEY);
     assert(importedBytes !== null, "imported progress is missing");
 
