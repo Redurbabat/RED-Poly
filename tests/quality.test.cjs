@@ -110,7 +110,10 @@ test("SRS review logic preserves boundaries and due scheduling", () => {
   assert.equal(first.interval, 1);
   assert.ok(first.dueAt >= before + 86_400_000);
   assert.equal(isDue(first, before), false);
-  assert.equal(dueInDays(first, before), 1);
+  // Compute from the exact due timestamp. Using "before" adds a few ms
+  // between Date.now() calls, so ceil(1 day + epsilon) spuriously yields 2.
+  assert.equal(dueInDays(first, first.dueAt - 86_400_000), 1);
+  assert.equal(dueInDays(first, first.dueAt), 0);
   const failed = reviewWord(first, 0);
   assert.equal(failed.streak, 0);
   assert.equal(failed.interval, 0);
