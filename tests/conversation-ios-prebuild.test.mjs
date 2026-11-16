@@ -18,8 +18,8 @@ const plist = appFolders
 if (!plist) throw new Error("No generated Info.plist found.");
 
 test("generated iOS Xcode project has RED POLY bundle identifier", () => {
-  assert.match(project, /PRODUCT_BUNDLE_IDENTIFIER\\s*=\\s*com\\.redurbabat\\.redpoly/);
-  assert.doesNotMatch(project, /com\\.ahmet\\.lingo/);
+  assert.match(project, /PRODUCT_BUNDLE_IDENTIFIER\s*=\s*com\.redurbabat\.redpoly/);
+  assert.doesNotMatch(project, /com\.ahmet\.lingo/);
 });
 test("generated iOS Info.plist contains both permission descriptions", () => {
   assert.match(plist, /NSMicrophoneUsageDescription/);
