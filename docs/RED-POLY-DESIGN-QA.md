@@ -79,3 +79,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Neu: `scripts/release-identity-guard.cjs` vergleicht die aktuellen App- und EAS-Metadaten mit Mindestanforderungen und erkannten fremden Lingo-/EAS-/Apple-Identitäten. Ohne Parameter **Exit 2 bei gesperrtem Release**. `--audit` protokolliert die Probleme in normaler PR-CI ohne einen iPhone-Build zu starten.
 - Drei Unit-Tests mit synthetischen eigenen und fremden Identitäten (`tests/release-identity.test.cjs`); unveränderte `app.json` und `eas.json`.
 - Die genaue, manuelle Reihenfolge für Mac/iPhone steht in `docs/RED-POLY-IOS-QA.md`. **Es wurde keine IPA gebaut oder signiert.**
+
+## Persistenz- und Release-Sperren-Regression (16.11.2026)
+- Chromium prüft jetzt zusätzlich per **echter UI + Seitenreload**: Onboarding mit geändertem Tagesziel (30 XP statt Standard 20) bleibt auf dem Profil erhalten; Dark Mode bleibt nach Neuladen des Design Labs aktiv. Es werden keine Store-Mocks oder künstlichen `progress-v2`-Daten erzeugt. **Das beweist nicht** abgeschlossene Lektionen, XP-Gutschriften, Migration oder native Persistenz auf iOS.
+- Zwei zusätzliche Node-Prozesstests starten den Release-Guard als eigenständigen CLI-Prozess: aktueller Fremdidentitäts-Stand muss mit **Exit 2** blockieren und Dateien unverändert lassen; `--audit` muss denselben Befund melden und mit **Exit 0** enden.
+- Agent 01 hat in separatem [PR #5](https://github.com/Redurbabat/RED-Poly/pull/5) neue abgesicherte asynchrone Backup-/Restore- und Importfunktionen angekündigt. Bis zur koordinierten Integration werden sie **nicht** in diesen QA-Branch kopiert. Eine spätere Restore-UI muss den Ersatz bestehender Lernstände explizit bestätigen lassen.

@@ -28,9 +28,19 @@ async function main() {
     await page.goto(baseURL + "/onboarding", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.getByText("Welcome!", { exact: true }).waitFor({ timeout: 90_000 });
 
-    // Complete onboarding through the real screen, not a fabricated progress-v2 fixture.
+    // Choose a nondefault daily goal via the real onboarding UI.
+    // This verifies real AsyncStorage persistence on reload without mocking the store.
+    await page.getByRole("button", { name: "30 XP per day, Serious" }).click();
     await page.getByRole("button", { name: /^Learn / }).first().click();
     await page.getByText("Learn", { exact: true }).first().waitFor({ timeout: 30_000 });
+
+    await page.getByRole("tab", { name: "Profile" }).click();
+    await page.getByText("My Progress", { exact: true }).waitFor({ timeout: 30_000 });
+    await page.getByText("0/30", { exact: true }).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.getByText("My Progress", { exact: true }).waitFor({ timeout: 30_000 });
+    await page.getByText("0/30", { exact: true }).waitFor();
+
     await page.goto(baseURL + "/design-lab", { waitUntil: "domcontentloaded", timeout: 90_000 });
     await page.getByText("RED POLY · Design Lab").waitFor({ timeout: 90_000 });
 
@@ -115,13 +125,16 @@ async function main() {
     });
     await page.getByText("RED POLY · Design Lab").waitFor();
     await page.getByText(/web · dark ·/).waitFor();
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.getByText("RED POLY · Design Lab").waitFor({ timeout: 30_000 });
+    await page.getByText(/web · dark ·/).waitFor();
     await page.screenshot({
       path: path.join(outputDir, "dark-mobile-design-lab.png"),
       fullPage: true,
     });
 
     assert.deepEqual(exceptions, [], "browser must not raise unhandled page errors");
-    console.log("PASS: Chromium onboarding, design-lab actions, keyboard, 320px viewport, dark theme");
+    console.log("PASS: Chromium onboarding/goal persistence, design-lab actions, keyboard, 320px viewport, persistent dark theme");
     console.log("Screenshots: " + outputDir);
   } finally {
     await browser.close();

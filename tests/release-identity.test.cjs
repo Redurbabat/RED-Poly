@@ -1,5 +1,8 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 const { checkReleaseIdentity } = require("../scripts/release-identity-guard.cjs");
 
 function ownConfig() {
@@ -49,4 +52,30 @@ test("release guard detects missing EAS project and Android package", () => {
     "expo.android.package",
     "expo.extra.eas.projectId",
   ]);
+});
+
+test("CLI blocks current foreign identity with exit code 2 and never mutates config", () => {
+  const root = path.resolve(__dirname, "..");
+  const appFile = path.join(root, "app.json");
+  const easFile = path.join(root, "eas.json");
+  const before = [fs.readFileSync(appFile, "utf8"), fs.readFileSync(easFile, "utf8")];
+  const result = spawnSync(process.execPath, ["scripts/release-identity-guard.cjs"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 2, `expected release block; output: ${result.stderr || result.stdout}`);
+  assert.match(result.stdout, /RELEASE BLOCKED: 8/);
+  assert.deepEqual([fs.readFileSync(appFile, "utf8"), fs.readFileSync(easFile, "utf8")], before);
+});
+
+test("CLI --audit reports release blocker without breaking ordinary QA", () => {
+  const root = path.resolve(__dirname, "..");
+  const result = spawnSync(process.execPath, ["scripts/release-identity-guard.cjs", "--audit"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /RELEASE BLOCKED: 8/);
 });
