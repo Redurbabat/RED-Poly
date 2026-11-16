@@ -136,6 +136,13 @@ await restoreProgressBackup(backupJSON);
 - **Einschränkung:** AsyncStorage bietet keine atomaren Compare-and-Swap-Transaktionen. Fremde direkte `AsyncStorage`- bzw. `useProgress.setState`-Schreibpfade müssen während der Übernahme zusätzlich pausiert bleiben. Bei Geräte- oder Rehydrierungsfehlern sind Sicherung und Rollback nach wie vor **Best-Effort**, nicht vollständig transaktional.
 - Keine Cloud-Synchronisierung und keine externe Backup-Bibliothek. Es gibt **noch keine sichtbare Backup-/Restore-Benutzeroberfläche**.
 
+## Rehydrierung und ausstehende Speicheroperationen
+
+- Die Schreibsperre `createProgressWriteGuard()` wartet beim Erwerb weiterhin auf ältere Zustand-Saves. Neu kann sie mit `guard.drain()` **auch während einer bereits gehaltenen Sperre** auf später entstandene Speicheroperationen warten.
+- Nach `rehydrate()` rufen **Restore und WordPecker-Geräteimport** diese Prüfung auf, bevor sie den neuen Zustand als erfolgreich verifiziert melden oder die ursprünglichen Bytes nach einem Fehler zurückladen.
+- Ein fehlgeschlagener Persistenzvorgang führt nicht mehr dazu, dass die Sperre vor noch laufenden weiteren Schreibvorgängen freigegeben wird: Alle gemeldeten Operationen werden zuerst abgewartet und der Fehler danach weitergereicht. Die Sperre ersetzt weder AsyncStorage-Transaktionen noch erfasst sie externe direkte Schreiber.
+- Die Regressionstests simulieren verzögerte, bei `rehydrate()` gestartete Writes mit älterem XP-Stand und kontrollieren, dass Restore und Migration **nicht voreilig Erfolg melden**.
+
 ## Tests und verbleibende Abnahme
 
 ```bash
@@ -143,7 +150,7 @@ npm run test:core
 # äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs tests/progress-storage.test.mjs
 ```
 
-Fünfundfünfzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Legacy-Änderungen nach dem Wortlisten-Commit, fremde XP-Speicherstände bei unvollständigem Rollback, Änderungen während der Checkpoint-Erstellung, vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**55 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43905171224](https://github.com/Redurbabat/RED-Poly/actions/runs/43905171224)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Sechzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Legacy-Änderungen nach dem Wortlisten-Commit, fremde XP-Speicherstände bei unvollständigem Rollback, Änderungen während der Checkpoint-Erstellung, vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**60 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43910225146](https://github.com/Redurbabat/RED-Poly/actions/runs/43910225146)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, sichtbare UI zum Export/Restore mit Schreibsperre, Geräte-Abnahme inklusive echten AsyncStorage-Persistenztests und eine Migration mit sicherer Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git). Root-TypeScript und die Core-CI laufen bereits grün; separate Integrationsprojekte prüfen sich weiterhin mit ihren eigenen Dependencies.
 
