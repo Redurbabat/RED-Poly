@@ -25,18 +25,31 @@ export function createProgressWriteGuard() {
     return result;
   };
 
+  const waitForWrites = async () => {
+    // All pending writes must finish, even when one already failed.
+    // Promise.all would reject early and could leave a later write running.
+    while (pending.size > 0) {
+      await Promise.allSettled([...pending]);
+    }
+    if (failedWrite !== null) {
+      throw new Error("RED POLY progress: an earlier save failed; resolve it before migration", {
+        cause: failedWrite,
+      });
+    }
+  };
+
+  const drain = async () => {
+    if (!locked) {
+      throw new Error("RED POLY progress: draining requires an active migration lock");
+    }
+    await waitForWrites();
+  };
+
   const acquire = async () => {
     assertUnlocked();
     locked = true;
     try {
-      while (pending.size > 0) {
-        await Promise.all([...pending]);
-      }
-      if (failedWrite !== null) {
-        throw new Error("RED POLY progress: an earlier save failed; resolve it before migration", {
-          cause: failedWrite,
-        });
-      }
+      await waitForWrites();
       let released = false;
       return () => {
         if (!released) {
@@ -50,5 +63,5 @@ export function createProgressWriteGuard() {
     }
   };
 
-  return { assertUnlocked, trackWrite, acquire };
+  return { assertUnlocked, trackWrite, acquire, drain };
 }
