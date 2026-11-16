@@ -191,7 +191,7 @@ export async function importWordPeckerVocabularyToStorage(storage) {
   assert(await storage.getItem(WORDPECKER_LEGACY_STORAGE_KEY) === legacyRaw,
     "vocabulary changed during import; retry while edits are paused");
 
-  await restoreProgressBackupToStorage(createProgressBackup(merged), storage);
+  await restoreProgressBackupToStorage(createProgressBackup(merged), storage, original);
 
   const persisted = decodeStoredProgress(await storage.getItem(PROGRESS_STORAGE_KEY));
   assert(JSON.stringify(persisted.courses) === JSON.stringify(merged.courses) &&
