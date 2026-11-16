@@ -133,8 +133,51 @@ async function main() {
       fullPage: true,
     });
 
+    // Backup/restore UI is isolated: no true device data or Core Data call.
+    await page.goto(baseURL + "/backup-lab", { waitUntil: "domcontentloaded", timeout: 90_000 });
+    await page.getByText("RED POLY · Backup Lab").waitFor({ timeout: 30_000 });
+    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+
+    await page.getByRole("button", { name: "Backup erzeugen" }).click();
+    const exported = await page.getByRole("textbox", { name: "Exportiertes Backup" }).inputValue();
+    assert.equal(JSON.parse(exported).format, "red-poly-progress");
+
+    const incomingField = page.getByRole("textbox", { name: "Backup JSON zum Wiederherstellen" });
+    await incomingField.fill("{broken");
+    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
+    await page.getByText("Das Backup enthält kein gültiges JSON.").waitFor();
+    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+
+    await incomingField.fill(exported);
+    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
+    await page.getByText("Lernstand wirklich ersetzen?").waitFor();
+    const irreversible = page.getByRole("button", { name: "Lernstand endgültig ersetzen" });
+    assert.equal(await irreversible.isDisabled(), true);
+    const phrase = page.getByRole("textbox", { name: "Bestätigungscode ERSETZEN" });
+    await phrase.fill("FALSCH");
+    assert.equal(await irreversible.isDisabled(), true);
+    await page.getByRole("button", { name: "Abbrechen" }).click();
+    await page.getByText("Test-Wiederherstellungen: 0").waitFor();
+
+    await page.getByRole("button", { name: "Wiederherstellung vorbereiten" }).click();
+    await phrase.fill("ERSETZEN");
+    await irreversible.click();
+    await page.getByText("Test-Wiederherstellungen: 1").waitFor();
+
+    await page.getByRole("button", { name: "Wortlistenimport vorbereiten" }).click();
+    await page.getByText("Alte Wortlisten übernehmen?").waitFor();
+    await page.getByRole("button", { name: "Abbrechen" }).click();
+    await page.getByText("Test-Importe: 0").waitFor();
+    await page.getByRole("button", { name: "Wortlistenimport vorbereiten" }).click();
+    await page.getByRole("button", { name: "Wortlisten importieren" }).click();
+    await page.getByText("Test-Importe: 1").waitFor();
+    await page.screenshot({
+      path: path.join(outputDir, "backup-lab-simulation.png"),
+      fullPage: true,
+    });
+
     assert.deepEqual(exceptions, [], "browser must not raise unhandled page errors");
-    console.log("PASS: Chromium onboarding/goal persistence, design-lab actions, keyboard, 320px viewport, persistent dark theme");
+    console.log("PASS: Chromium onboarding persistence, design lab, and confirmed/cancelled mock backup restore/import");
     console.log("Screenshots: " + outputDir);
   } finally {
     await browser.close();

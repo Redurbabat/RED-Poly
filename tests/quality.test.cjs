@@ -80,6 +80,18 @@ test("design preview is development-only and demonstrates every primitive", () =
   assert.match(code, /onChangeText=\{setQuery\}/);
 });
 
+test("backup transfer is UI-only and production preview route redirects", () => {
+  const ui = read("src/components/poly-backup-transfer.tsx");
+  const demo = read("src/app/backup-lab.tsx");
+  assert.match(ui, /confirmation !== "ERSETZEN"/);
+  assert.match(ui, /checkBackupEnvelope\(incoming\)/);
+  assert.match(ui, /const backup = pending/);
+  assert.match(ui, /busyRef\.current = true/);
+  assert.ok(!ui.includes("from \"@/lib/store\""));
+  assert.ok(demo.includes('return __DEV__ ? <BackupLab /> : <Redirect href="/(tabs)" />;'));
+  assert.ok(demo.includes("NUR SIMULATION"));
+});
+
 test("existing persisted progress key must not change", () => {
   assert.match(read("src/lib/store.ts"), /progress-v2/);
 });
