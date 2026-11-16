@@ -35,3 +35,5 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Check TypeScript
         run: bunx tsc --noEmit --project tsconfig.conversation.json
+      - name: Validate Expo native plugin configuration
+        run: bunx expo config --type prebuild --json > /dev/null
