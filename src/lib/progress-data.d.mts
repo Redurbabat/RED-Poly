@@ -68,7 +68,9 @@ export function createProgressBackup(state: PersistedProgressData, now?: number)
 export function parseProgressBackup(serialized: string): PersistedProgressData;
 export function restoreProgressBackupToStorage(
   serialized: string,
-  storage: ProgressStorageAdapter
+  storage: ProgressStorageAdapter,
+  /** Optional exact original bytes; aborts if another writer changed progress. */
+  expectedOriginal?: string | null
 ): Promise<PersistedProgressData>;
 export function vocabularyReviewKey(listId: string, wordId: string): string;
 export function addVocabularyList(lists: VocabularyList[], list: VocabularyList): VocabularyList[];
