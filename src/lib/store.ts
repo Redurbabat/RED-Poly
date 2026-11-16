@@ -8,6 +8,7 @@ import {
   importWordPeckerVocabularyToStorage,
 } from "./vocabulary-bridge.mjs";
 import { createProgressWriteGuard } from "./progress-write-guard.mjs";
+import { createSerializedProgressStorage } from "./progress-storage.mjs";
 import {
   exportVerifiedProgressBackup as exportGuardedBackup,
   restoreVerifiedProgressBackup as restoreGuardedBackup,
@@ -35,13 +36,12 @@ export const DEFAULT_COURSE = "es-en";
 const DAY_HISTORY_LIMIT = 70;
 
 const progressWriteGuard = createProgressWriteGuard();
-const trackedProgressStorage = {
-  getItem: (key: string) => AsyncStorage.getItem(key),
-  setItem: (key: string, value: string) =>
-    progressWriteGuard.trackWrite(AsyncStorage.setItem(key, value)),
-  removeItem: (key: string) =>
-    progressWriteGuard.trackWrite(AsyncStorage.removeItem(key)),
-};
+// Persisting older lesson snapshots after newer ones would silently undo XP.
+// Keep all Zustand writes (including removes) in invocation order.
+const trackedProgressStorage = createSerializedProgressStorage(
+  AsyncStorage,
+  progressWriteGuard
+);
 
 export type ThemePreference = "system" | "light" | "dark";
 export type WordStat = { correct: number; wrong: number; lastSeen: number };
