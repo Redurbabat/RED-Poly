@@ -32,10 +32,6 @@ jobs:
         run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs
       - uses: oven-sh/setup-bun@v2
       - name: Install project dependencies
-        run: |
-          bun install
-          echo "=== BEGIN BUN LOCK DIFF ==="
-          git diff -- bun.lock
-          echo "=== END BUN LOCK DIFF ==="
+        run: bun install --frozen-lockfile
       - name: Check TypeScript
         run: bunx tsc --noEmit --project tsconfig.conversation.json
