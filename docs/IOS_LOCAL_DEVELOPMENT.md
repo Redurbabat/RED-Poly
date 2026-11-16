@@ -65,3 +65,7 @@ Speech recognition may use a remote iOS service. The RED POLY demo does not uplo
 - CI now selects an available iPhone Simulator on the macOS runner, boots it, installs the unsigned `REDPOLY.app`, verifies its application container and calls `simctl launch com.redurbabat.redpoly`.
 - The Debug application relies on a Metro development server for the full JavaScript UI. A successful `simctl launch` **does not** establish that the Conversation screen or microphone has been tested end-to-end.
 - No Apple credentials or provisioning profiles are needed for simulator installation.
+
+## Diagnosing an iOS Simulator launch hang
+- The CI smoke test has a **10-minute step timeout**; a cold macOS runner may boot a Simulator slowly. If the timeout is reached, read the `Install and launch app in iOS Simulator` step logs before diagnosing an app error.
+- The unsigned simulator `.app` artifact is uploaded **before** attempting device boot, so a timeout in the smoke test will not hide a successful native compile. No signable iPhone IPA is created.
