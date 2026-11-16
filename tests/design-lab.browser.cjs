@@ -9,7 +9,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
-const baseURL = process.env.RED_POLY_TEST_URL || "http://127.0.0.1:8081";
+const baseURL = process.env.RED_POLY_TEST_URL || "http://localhost:8081";
 const outputDir = path.join(__dirname, "..", ".ci-browser-artifacts");
 fs.mkdirSync(outputDir, { recursive: true });
 
