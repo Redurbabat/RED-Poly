@@ -264,3 +264,41 @@ test("concurrent XP edit at final pre-write read cannot be silently overwritten"
   assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 777);
   assert.equal(operations.length, 0);
 });
+
+
+test("overlapping migration calls are rejected and never race to overwrite progress", async () => {
+  const { disk, operations, storage } = makeStorage();
+  let release;
+  let intercepted = false;
+  const blocked = {
+    ...storage,
+    async getItem(key) {
+      if (key === PROGRESS_STORAGE_KEY && !intercepted) {
+        intercepted = true;
+        await new Promise((resolve) => { release = resolve; });
+      }
+      return storage.getItem(key);
+    },
+  };
+  const first = importWordPeckerVocabularyToStorage(blocked);
+  await assert.rejects(
+    importWordPeckerVocabularyToStorage(storage),
+    /another vocabulary import is already running/
+  );
+  assert.equal(operations.length, 0);
+  release();
+  assert.deepEqual(await first, { listsAdded: 1, wordsAdded: 1 });
+  assert.equal(JSON.parse(disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 135);
+  assert.deepEqual(await importWordPeckerVocabularyToStorage(storage),
+    { listsAdded: 0, wordsAdded: 0 });
+});
+
+test("failed migration releases the import lock for a subsequent valid retry", async () => {
+  const { disk, storage } = makeStorage();
+  disk.set(WORDPECKER_LEGACY_STORAGE_KEY, "not JSON");
+  await assert.rejects(importWordPeckerVocabularyToStorage(storage),
+    /malformed legacy vocabulary/);
+  disk.set(WORDPECKER_LEGACY_STORAGE_KEY, JSON.stringify(legacy()));
+  assert.deepEqual(await importWordPeckerVocabularyToStorage(storage),
+    { listsAdded: 1, wordsAdded: 1 });
+});
