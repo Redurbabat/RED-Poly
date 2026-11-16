@@ -302,3 +302,30 @@ test("failed migration releases the import lock for a subsequent valid retry", a
   assert.deepEqual(await importWordPeckerVocabularyToStorage(storage),
     { listsAdded: 1, wordsAdded: 1 });
 });
+
+
+test("changed legacy source after storage commit rolls back progress and retains original checkpoint", async () => {
+  const { original, legacyRaw, disk, storage } = makeStorage();
+  let reads = 0;
+  const newerLegacy = JSON.stringify({
+    ...JSON.parse(legacyRaw),
+    lists: [...JSON.parse(legacyRaw).lists, {
+      id: "new", title: "Extra", courseId: "fr-en", words: [],
+    }],
+  });
+  const racing = {
+    ...storage,
+    async getItem(key) {
+      if (key === WORDPECKER_LEGACY_STORAGE_KEY && ++reads === 3) {
+        disk.set(key, newerLegacy);
+      }
+      return storage.getItem(key);
+    },
+  };
+  await assert.rejects(importWordPeckerVocabularyToStorage(racing),
+    /legacy vocabulary changed after import/);
+  assert.equal(disk.get(PROGRESS_STORAGE_KEY), original,
+    "a failed import must not leave saved progress ahead of in-memory state");
+  assert.equal(disk.get(WORDPECKER_LEGACY_STORAGE_KEY), newerLegacy);
+  assert.equal(disk.get("progress-v2-restore-checkpoint"), original);
+});
