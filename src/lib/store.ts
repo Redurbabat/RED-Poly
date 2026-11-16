@@ -3,7 +3,11 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isDue, reviewWord, type SrsEntry } from "./srs";
-import { mergeWordPeckerVocabulary } from "./vocabulary-bridge.mjs";
+import {
+  mergeWordPeckerVocabulary,
+  importWordPeckerVocabularyToStorage,
+} from "./vocabulary-bridge.mjs";
+import { createProgressWriteGuard } from "./progress-write-guard.mjs";
 import {
   PROGRESS_STORAGE_KEY,
   PROGRESS_STORAGE_VERSION,
@@ -26,6 +30,15 @@ export const DEFAULT_DAILY_GOAL = 20;
 export const DEFAULT_COURSE = "es-en";
 /** Days of per-day history kept for the streak calendar and quests. */
 const DAY_HISTORY_LIMIT = 70;
+
+const progressWriteGuard = createProgressWriteGuard();
+const trackedProgressStorage = {
+  getItem: (key: string) => AsyncStorage.getItem(key),
+  setItem: (key: string, value: string) =>
+    progressWriteGuard.trackWrite(AsyncStorage.setItem(key, value)),
+  removeItem: (key: string) =>
+    progressWriteGuard.trackWrite(AsyncStorage.removeItem(key)),
+};
 
 export type ThemePreference = "system" | "light" | "dark";
 export type WordStat = { correct: number; wrong: number; lastSeen: number };
@@ -125,7 +138,13 @@ function updateCourse(
 
 export const useProgress = create<ProgressState>()(
   persist(
-    (set, get) => ({
+    (unsafeSet, get) => {
+      // Protect all built-in learning actions while a migration owns the lock.
+      const set = ((...args: Parameters<typeof unsafeSet>) => {
+        progressWriteGuard.assertUnlocked();
+        return unsafeSet(...args);
+      }) as typeof unsafeSet;
+      return ({
       activeCourseId: DEFAULT_COURSE,
       streak: 0,
       lastActiveDay: null,
@@ -275,11 +294,12 @@ export const useProgress = create<ProgressState>()(
 
       finishOnboarding: (courseId, goal) =>
         set({ activeCourseId: courseId, dailyGoal: goal, onboardingDone: true }),
-    }),
+      });
+    },
     {
       name: PROGRESS_STORAGE_KEY,
       version: PROGRESS_STORAGE_VERSION,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => trackedProgressStorage),
       // Zustand's old unversioned payloads are v0. Keep progress-v2 unchanged.
       migrate: (persisted: unknown, fromVersion: number) =>
         migrateProgressData(persisted, fromVersion) as ProgressState,
@@ -395,4 +415,51 @@ export function exportProgressBackup(): string {
 export async function restoreProgressBackup(serialized: string): Promise<void> {
   await restoreProgressBackupToStorage(serialized, AsyncStorage);
   await useProgress.persist.rehydrate();
+}
+
+
+/**
+ * Safe entry point for an explicit, user-approved WordPecker migration.
+ *
+ * Guards standard learning actions while waiting for previously submitted
+ * Zustand writes, rejects mismatched disk / memory snapshots, verifies storage
+ * through the core migration adapter, and rehydrates the live store.
+ *
+ * Do not call while external code writes directly to AsyncStorage: its API
+ * does not provide a cross-process transaction or compare-and-swap.
+ */
+export async function importWordPeckerVocabularyFromDevice(): Promise<{
+  listsAdded: number;
+  wordsAdded: number;
+}> {
+  if (!useProgress.persist.hasHydrated()) {
+    throw new Error("RED POLY progress: load your progress before importing");
+  }
+  const release = await progressWriteGuard.acquire();
+  try {
+    const raw = await trackedProgressStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (raw === null) {
+      throw new Error("RED POLY progress: no saved progress to migrate");
+    }
+    let envelope: unknown;
+    try { envelope = JSON.parse(raw); }
+    catch { throw new Error("RED POLY progress: corrupt stored progress"); }
+    if (!envelope || typeof envelope !== "object" || !("state" in envelope)) {
+      throw new Error("RED POLY progress: invalid stored progress envelope");
+    }
+    const stored = envelope as { state: unknown; version?: number };
+    const persisted = migrateProgressData(stored.state, stored.version ?? 0);
+    // Compare only persisted data, not live Zustand functions.
+    const liveSnapshot = JSON.parse(createProgressBackup(useProgress.getState())).state;
+    const diskSnapshot = JSON.parse(createProgressBackup(persisted)).state;
+    if (JSON.stringify(liveSnapshot) !== JSON.stringify(diskSnapshot)) {
+      throw new Error("RED POLY progress: local edits are not reflected on disk");
+    }
+
+    const result = await importWordPeckerVocabularyToStorage(AsyncStorage);
+    await useProgress.persist.rehydrate();
+    return result;
+  } finally {
+    release();
+  }
 }
