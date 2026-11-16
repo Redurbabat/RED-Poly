@@ -311,3 +311,31 @@ test("restore rollback refuses to overwrite newer external XP after failed rehyd
   assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
   ctx.guard.assertUnlocked();
 });
+
+
+test("failed WordPecker import rehydrates external XP instead of leaving stale live state", async () => {
+  const ctx = device();
+  const { key, serialized } = seedWordPecker(ctx);
+  let legacyReads = 0;
+  const normalGet = ctx.options.storage.getItem;
+  ctx.options.storage.getItem = async (k) => {
+    if (k === key && ++legacyReads === 3) {
+      // A direct writer saved a new lesson after the import was committed.
+      const newer = JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY));
+      newer.state.courses["es-en"].xp = 999;
+      ctx.disk.set(PROGRESS_STORAGE_KEY, JSON.stringify(newer));
+      ctx.disk.set(key, serialized + " ");
+    }
+    return normalGet(k);
+  };
+  await assert.rejects(
+    importVerifiedWordPeckerVocabulary(ctx.options),
+    /rollback incomplete/
+  );
+  assert.equal(JSON.parse(ctx.disk.get(PROGRESS_STORAGE_KEY)).state.courses["es-en"].xp, 999);
+  assert.equal(ctx.live.courses["es-en"].xp, 999,
+    "even after an incomplete rollback, live Zustand must match the newer disk state");
+  assert.deepEqual(ctx.live.vocabularyLists.map((x) => x.id), ["trip"]);
+  assert.equal(ctx.disk.get(RESTORE_CHECKPOINT_KEY), ctx.original);
+  ctx.guard.assertUnlocked();
+});
