@@ -16,8 +16,8 @@ Implementierte Dateien:
 - `src/lib/progress-storage.mjs` / `.d.mts`: serialisierter AsyncStorage-Adapter; verhindert, dass alte Zustand-Snapshots neuere XP-/SRS-Werte durch verspätete Writes überschreiben.
 - `tests/progress-write-guard.test.mjs`: überprüft Sperre, parallele Importe und fehlerhafte Speicheroperationen.
 - `tests/progress-storage.test.mjs`: prüft die Reihenfolge von zwei XP-Saves, Storage-Deletes, Write-Drain bei Migration und die Fehlerbehandlung.
-- `src/lib/progress-transfer.mjs` / `.d.mts`: überprüfter Geräte-Export und abgesicherter Restore mit gemeinsamer Schreibsperre.
-- `tests/progress-transfer.test.mjs`: prüft Backup aus verifiziertem Speicherstand, den Restore-Ablauf, erneutes Einlesen und Rollback.
+- `src/lib/progress-transfer.mjs` / `.d.mts`: überprüfter Geräte-Export, abgesicherter Restore und WordPecker-Import mit Rehydrationsprüfung und bedingtem Rollback unter einer gemeinsamen Schreibsperre.
+- `tests/progress-transfer.test.mjs`: prüft Backup aus verifiziertem Speicherstand, den Restore-Ablauf, erneutes Einlesen und Rollback, einschliesslich fünf neuer WordPecker-Geräteimport-Regressionen.
 
 ## Persistenz / Migration
 
@@ -91,10 +91,13 @@ import { importWordPeckerVocabularyFromDevice } from "@/lib/store";
 // NUR nach ausdrücklicher Nutzeraktion, mit Fehleranzeige in der UI.
 // Wartet auf getrackte Speicheroperationen, sperrt reguläre Store-Actions,
 // vergleicht App-Snapshot mit gespeicherten Bytes, führt den Import
-// überprüft aus und rehydriert anschliessend den Zustand.
+// überprüft aus, kontrolliert die Rehydration und versucht bei Fehlern
+// eine verifizierte Rücknahme auf die ursprünglichen progress-v2-Bytes.
 const result = await importWordPeckerVocabularyFromDevice();
 // result: { listsAdded, wordsAdded }
 ```
+
+**Hydrationsfehler / Rollback:** Falls der WordPecker-Import gespeichert wurde, aber die App den neuen Lernstand nicht korrekt laden kann, stellt die koordinierende Funktion die alten `progress-v2`-Bytes wieder her und prüft den alten Lernstand nach erneutem Laden. Dies geschieht **nur**, wenn `progress-v2` noch exakt dem soeben importierten Stand entspricht. Bei neueren fremden Änderungen erfolgt kein blindes Überschreiben; die unveränderte WordPecker-Quelle und das Original-Checkpoint bleiben als Rettungsweg vorhanden. Ein fehlgeschlagener Rollback wird ausdrücklich gemeldet.
 
 **Grenze:** Die App-Funktion sperrt **reguläre** `useProgress`-Aktionen, wartet auf bereits getrackte Store-Schreibvorgänge und lehnt fehlgeschlagene vorherige Speichervorgänge ab. Die Sperre deckt aber keine fremden direkten Aufrufe von `AsyncStorage.setItem`, externe Prozesse oder eigene `useProgress.setState`-Aufrufe ab. **AsyncStorage hat keine atomare Compare-and-Swap-Transaktion.** Die UI muss auch diese externen Schreibpfade pausieren, Fehler sichtbar anzeigen und erst nach der Abnahme den alten Zustand archivieren. Der bestehende Legacy-Key `red-poly:vocabulary-v1` bleibt unverändert.
 
@@ -137,7 +140,7 @@ npm run test:core
 # äquivalent: node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs tests/progress-storage.test.mjs
 ```
 
-Vierundvierzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Änderungen vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**44 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43826192921](https://github.com/Redurbabat/RED-Poly/actions/runs/43826192921)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
+Neunundvierzig Testfälle prüfen u. a. v0-Legacy, Kurswechsel, XP-/SRS-Erhalt, Backup-Roundtrip, korrupte und unvollständige Version-1-Backups, Checkpoint bei wiederholtem Restore, Rollback bei Schreibfehler sowie Agent-02-Vokabelmigration, simulierten Offline-Neustart, Schreibsperre, verifizierten Backup-Export, Restore-Rehydrierung, späte Änderungen vor dem Commit und erneute Ladung des vorherigen Lernstands nach einem fehlgeschlagenen Restore. Der GitHub-Actions-Workflow `RED POLY Core Data Regression` hat den Node-Test-Runner ausgeführt (**49 bestanden, 0 fehlgeschlagen**) und die Installation mit `bun install --frozen-lockfile` sowie `bunx tsc --noEmit` erfolgreich abgeschlossen ([CI-Lauf 43827528911](https://github.com/Redurbabat/RED-Poly/actions/runs/43827528911)). `tsconfig.json` schliesst die unintegrierten Quellbäume unter `integrations/` vom Expo-Root-Typecheck aus. **iOS, Android, Web und echter AsyncStorage-Gerätetest wurden hier nicht ausgeführt.**
 
 Für die Integration folgen: Agent-02-UI für Wortlisten/SRS, Agent-03-Konversation, sichtbare UI zum Export/Restore mit Schreibsperre, Geräte-Abnahme inklusive echten AsyncStorage-Persistenztests und eine Migration mit sicherer Kopie realer `progress-v2`-Daten (ohne Nutzerdaten in Git). Root-TypeScript und die Core-CI laufen bereits grün; separate Integrationsprojekte prüfen sich weiterhin mit ihren eigenen Dependencies.
 
