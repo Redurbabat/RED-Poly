@@ -3,15 +3,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isDue, reviewWord, type SrsEntry } from "./srs";
-import {
-  mergeWordPeckerVocabulary,
-  importWordPeckerVocabularyToStorage,
-} from "./vocabulary-bridge.mjs";
+import { mergeWordPeckerVocabulary } from "./vocabulary-bridge.mjs";
 import { createProgressWriteGuard } from "./progress-write-guard.mjs";
 import { createSerializedProgressStorage } from "./progress-storage.mjs";
 import {
   exportVerifiedProgressBackup as exportGuardedBackup,
   restoreVerifiedProgressBackup as restoreGuardedBackup,
+  importVerifiedWordPeckerVocabulary as importGuardedWordPecker,
 } from "./progress-transfer.mjs";
 import {
   PROGRESS_STORAGE_KEY,
@@ -452,34 +450,11 @@ export async function importWordPeckerVocabularyFromDevice(): Promise<{
   listsAdded: number;
   wordsAdded: number;
 }> {
-  if (!useProgress.persist.hasHydrated()) {
-    throw new Error("RED POLY progress: load your progress before importing");
-  }
-  const release = await progressWriteGuard.acquire();
-  try {
-    const raw = await trackedProgressStorage.getItem(PROGRESS_STORAGE_KEY);
-    if (raw === null) {
-      throw new Error("RED POLY progress: no saved progress to migrate");
-    }
-    let envelope: unknown;
-    try { envelope = JSON.parse(raw); }
-    catch { throw new Error("RED POLY progress: corrupt stored progress"); }
-    if (!envelope || typeof envelope !== "object" || !("state" in envelope)) {
-      throw new Error("RED POLY progress: invalid stored progress envelope");
-    }
-    const stored = envelope as { state: unknown; version?: number };
-    const persisted = migrateProgressData(stored.state, stored.version ?? 0);
-    // Compare only persisted data, not live Zustand functions.
-    const liveSnapshot = JSON.parse(createProgressBackup(useProgress.getState())).state;
-    const diskSnapshot = JSON.parse(createProgressBackup(persisted)).state;
-    if (JSON.stringify(liveSnapshot) !== JSON.stringify(diskSnapshot)) {
-      throw new Error("RED POLY progress: local edits are not reflected on disk");
-    }
-
-    const result = await importWordPeckerVocabularyToStorage(AsyncStorage);
-    await useProgress.persist.rehydrate();
-    return result;
-  } finally {
-    release();
-  }
+  return importGuardedWordPecker({
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+    rehydrate: async () => { await useProgress.persist.rehydrate(); },
+  });
 }
