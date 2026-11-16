@@ -74,3 +74,8 @@ Prüfen: Tastaturüberdeckung, iPhone-Safe-Areas, Statusleiste, kleine Displays,
 - Der Chromium-End-to-End-Test prüft neu zusätzlich einen **320 × 568 px** schmalen Bildschirm gegen horizontales Überlaufen, die **Tastaturaktivierung** eines Dialogs mit Enter und die echte **Dark-Mode-Umschaltung** über die bestehenden Profileinstellungen. Keine Änderungen an Lern- oder Profile-Screens.
 - Neue separate Screenshots: `small-mobile-design-lab.png`, `dark-mobile-design-lab.png`; sie liegen mit den bestehenden Screenshots im GitHub-Actions-Artefakt. Resultate erst nach erfolgreichem Run als bestätigt markieren.
 - Das ist eine Browser-Abnahme, **keine** VoiceOver-, iOS-Simulator- oder iPhone-Hardware-Abnahme.
+
+## Release-Vorflugpruefung ohne Build (16.11.2026)
+- Neu: `scripts/release-identity-guard.cjs` vergleicht die aktuellen App- und EAS-Metadaten mit Mindestanforderungen und erkannten fremden Lingo-/EAS-/Apple-Identitäten. Ohne Parameter **Exit 2 bei gesperrtem Release**. `--audit` protokolliert die Probleme in normaler PR-CI ohne einen iPhone-Build zu starten.
+- Drei Unit-Tests mit synthetischen eigenen und fremden Identitäten (`tests/release-identity.test.cjs`); unveränderte `app.json` und `eas.json`.
+- Die genaue, manuelle Reihenfolge für Mac/iPhone steht in `docs/RED-POLY-IOS-QA.md`. **Es wurde keine IPA gebaut oder signiert.**

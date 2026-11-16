@@ -33,6 +33,8 @@ jobs:
         run: bunx eslint src --quiet
       - name: ESLint – shared components (strict)
         run: bunx eslint src/components/red-poly-ui.tsx --max-warnings=0
+      - name: Release identity audit (report only, no signing or build)
+        run: node scripts/release-identity-guard.cjs --audit
       - name: Unit and structure tests
         run: node --test tests/*.test.cjs
       - name: Expo web bundle smoke test
