@@ -433,7 +433,7 @@ export async function restoreProgressBackup(serialized: string): Promise<void> {
     guard: progressWriteGuard,
     getState: () => useProgress.getState(),
     isHydrated: () => useProgress.persist.hasHydrated(),
-    rehydrate: () => useProgress.persist.rehydrate(),
+    rehydrate: async () => { await useProgress.persist.rehydrate(); },
   });
 }
 
