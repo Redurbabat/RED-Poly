@@ -11,5 +11,8 @@
       "/api",
       "/api/*"
     ]
+  },
+  "build": {
+    "command": "bun run build:web"
   }
 }
