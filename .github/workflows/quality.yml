@@ -78,6 +78,7 @@ jobs:
             exit 1
           fi
           node tests/design-lab.browser.cjs
+          node tests/features.browser.cjs
       - name: Upload mobile/desktop browser preview
         if: always()
         uses: actions/upload-artifact@v4
