@@ -34,6 +34,16 @@ jobs:
       - name: Verify web export was created by Wrangler
         run: test -s dist/index.html
 
+      - name: Validate RED POLY artifact directory structure
+        run: |
+          bun run test:build-structure
+          node scripts/build-layout.mjs --stage-web
+          test -s build/visual-web-emission/index.html
+          test -s build/visual-web-merged/assets/index.html
+          test -s build/visual-web-merged/worker/index.ts
+          test -s build/metadata/build-layout.json
+          bunx wrangler@4 deploy --config build/visual-web-merged/wrangler.jsonc --dry-run --outdir .wrangler-preview/merged
+
       - name: Verify supported Wrangler Preview CLI (no credentials or upload)
         run: |
           bunx wrangler@4.135.0 preview --help > /tmp/red-poly-preview-help.txt
