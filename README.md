@@ -49,6 +49,21 @@ bunx wrangler@4 deploy
 - **Erforderliche GitHub-Actions-Secrets für automatisches Deployment:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 - Eine erfolgreiche Veröffentlichung benötigt Zugriff auf das eigene Cloudflare-Konto. Noch keine Cloud-Synchronisation.
 
+### Cloudflare Workers Builds (GitHub-Integration)
+
+Für einen bereits mit GitHub verbundenen Worker unter **Workers & Pages → red-poly → Settings → Builds**:
+
+- **Production branch:** `main`; **Root directory:** Repository-Root (`/`).
+- **Build command:** `bun run build:web`.
+- **Deploy command (Produktion):** `bunx wrangler@4 deploy`.
+- **Preview command:** `bunx wrangler@4 preview` (Cloudflare Workers Previews).
+- **Worker-Name** muss `red-poly` entsprechen.
+- **Bun:** `bun@1.3.5` ist in `package.json` festgelegt; der Build benötigt `dist/index.html`.
+
+**Nicht zwei Deploy-Wege gleichzeitig aktivieren:** Workers Builds *oder* den Deploy-Job von GitHub Actions verwenden. Bei Workers Builds erfolgt die Authentifizierung über das Cloudflare-Konto / den gewählten Build-Token; die GitHub-Secrets sind nur für den GitHub-Actions-Deploy-Job nötig.
+
+**Bei fehlgeschlagenem Cloudflare-Check:** Die GitHub-Actions-Tests allein beweisen kein erfolgreiches Cloudflare-Preview. Den roten `Workers Builds: red-poly`-Check öffnen, im Cloudflare-Dashboard `Deployments → View Build History` den Build auswählen und **die erste relevante Fehlermeldung im Log** prüfen. Besonders Build-/Deploy-Kommando, Root-Verzeichnis, Worker-Name und API-Token verifizieren. Ohne Dashboard-Log lässt sich die Fehlerursache nicht sicher bestimmen.
+
 ## Native Builds / App-Identität
 
 iOS-Bundle-ID und Android-Package: `com.redurbabat.redpoly`; Expo-Scheme: `redpoly`. Die früheren Lingo-/Expo-/App-Store-Kennungen sind in `app.json` und `eas.json` entfernt.
