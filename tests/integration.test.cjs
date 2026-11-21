@@ -64,3 +64,17 @@ test("iPhone gets a single real system tab bar while Android/web keep existing t
   assert.ok(!ios.includes("GlassView"), "do not overlay the iOS system bar with fake glass");
   assert.match(other, /import \{ Tabs \} from "expo-router"/);
 });
+
+test("Cloudflare publishing has one owner: Workers Builds, GitHub Actions only validates", () => {
+  const workflow = read(".github/workflows/cloudflare-workers.yml");
+  const readme = read("README.md");
+  assert.match(workflow, /wrangler@4 deploy --dry-run/);
+  assert.match(workflow, /wrangler@4 dev --local/);
+  assert.doesNotMatch(workflow, /run:\s*(bunx|npx) wrangler@4 deploy\s*$/m);
+  assert.doesNotMatch(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.match(readme, /Cloudflare Workers Builds/);
+  const config = readJson("wrangler.jsonc");
+  assert.equal(config.name, "red-poly");
+  assert.equal(config.main, "./worker/index.ts");
+  assert.equal(config.assets.binding, "ASSETS");
+});
