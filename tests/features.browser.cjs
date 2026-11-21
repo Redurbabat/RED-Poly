@@ -66,7 +66,7 @@ async function main() {
     const archiveDownload = page.waitForEvent("download");
     await page.getByRole("button", { name: "Gesamtarchiv als JSON herunterladen" }).click();
     const downloaded = await archiveDownload;
-    assert.match(downloaded.suggestedFilename(), /^red-poly-gesamtbackup-.*\\.json$/);
+    assert.match(downloaded.suggestedFilename(), /^red-poly-gesamtbackup-.*\.json$/);
     const fullBackup = JSON.parse(fs.readFileSync(await downloaded.path(), "utf8"));
     assert.equal(fullBackup.format, "red-poly-device-backup");
     assert.equal(fullBackup.version, 1);

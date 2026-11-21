@@ -92,7 +92,13 @@ export async function exportStableCompleteDeviceBackup(readers, now = Date.now()
   });
   const first = inspectCompleteDeviceBackup(makeCompleteDeviceBackup(await read(), now));
   const second = inspectCompleteDeviceBackup(makeCompleteDeviceBackup(await read(), now));
-  ensure(JSON.stringify(first.data) === JSON.stringify(second.data),
+  // The progress export generates a new exportedAt on every read;
+  // compare saved user data, not that metadata timestamp.
+  const contents = ({ progress, vocabulary, conversation }) => ({
+    progress: { format: progress.format, version: progress.version, state: progress.state },
+    vocabulary, conversation,
+  });
+  ensure(JSON.stringify(contents(first.data)) === JSON.stringify(contents(second.data)),
     "learning data changed during export; retry without editing");
   return JSON.stringify(first);
 }

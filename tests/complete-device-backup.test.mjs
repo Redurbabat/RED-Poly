@@ -86,3 +86,31 @@ test("no data is written and failed readers do not produce incomplete archives",
   };
   await assert.rejects(exportStableCompleteDeviceBackup(readers), /corrupt legacy vocabulary/);
 });
+
+test("different progress export timestamps do not falsely suggest user edits", async () => {
+  const data = sample();
+  let timestamp = 1_700_000_000_000;
+  const readers = {
+    readProgress: async () => JSON.stringify({
+      ...data.progress, exportedAt: new Date(timestamp++).toISOString(),
+    }),
+    readVocabulary: async () => data.vocabulary,
+    readConversation: async () => data.conversation,
+  };
+  const archive = inspectCompleteDeviceBackup(await exportStableCompleteDeviceBackup(readers));
+  assert.equal(archive.data.progress.state.activeCourseId, data.progress.state.activeCourseId);
+});
+
+test("real course edits between scans are rejected even if export timestamps differ", async () => {
+  const data = sample();
+  let scan = 0;
+  const readers = {
+    readProgress: async () => JSON.stringify({
+      ...data.progress, exportedAt: new Date(1_700_000_000_000 + scan).toISOString(),
+      state: { ...data.progress.state, dailyXp: scan++ },
+    }),
+    readVocabulary: async () => data.vocabulary,
+    readConversation: async () => data.conversation,
+  };
+  await assert.rejects(exportStableCompleteDeviceBackup(readers), /learning data changed during export/);
+});
