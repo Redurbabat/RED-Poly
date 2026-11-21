@@ -56,14 +56,16 @@ Für einen bereits mit GitHub verbundenen Worker unter **Workers & Pages → red
 - **Production branch:** `main`; **Root directory:** Repository-Root (`/`).
 - **Build command:** `bun run build:web` (empfohlen). Falls das Dashboard keinen Build-Befehl gesetzt hat, erstellt `wrangler.jsonc → build.command` die statische Web-Version auch bei einem regulären Wrangler-Deploy. Cloudflare-Preview-Builds sollten den Build-Befehl trotzdem ausdrücklich setzen.
 - **Deploy command (Produktion):** `bunx wrangler@4 deploy`.
-- **Preview command:** `bunx wrangler@4 preview` (Cloudflare Workers Previews).
+- **Preview command:** `bunx wrangler@4.135.0 preview` (Cloudflare Workers Previews; Version 4.135.0 oder neuer erforderlich).
 - **Worker-Name** muss `red-poly` entsprechen.
 - **Bun:** `bun@1.3.5` ist in `package.json` festgelegt; der Build benötigt `dist/index.html`.
 - **Für lokale Vorschauen:** `bun run cloudflare:preview` erzeugt vorher ausdrücklich das Web-Bundle. Workers Previews benötigt Wrangler >= 4.135.0.
 
+**Worker Previews:** `wrangler.jsonc` enthält jetzt ausdrücklich `previews: {}` und `preview_urls: true`. Cloudflare verlangt die `previews`-Konfiguration für branch-isolierte Worker Previews. Bei älteren bestehenden Cloudflare-Workers-Projekten muss im Dashboard unter **Settings → Builds → Set up Worker Previews** gegebenenfalls einmalig die Umstellung aktiviert werden. Für Preview-URLs ist ausserdem ein zulässiger Preview-Host erforderlich. Die Preview wird nur mit gültigem Cloudflare-Konto/Token erstellt.
+
 **Ein Deployment-Weg:** Dieses Repository verwendet Cloudflare Workers Builds; GitHub Actions führt nur Validierungen aus. GitHub Actions darf `main` nicht separat automatisch deployen, um konkurrierende Deployments zu verhindern.
 
-**Stand 21.11.2026:** Die lokale GitHub-Actions-Worker-Prüfung für Commit `503f5e0` ist erfolgreich, aber der separate Cloudflare-Workers-Build `2c5319b8-f70e-4acd-a8fb-9a86bb8a12b5` fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
+**Stand 21.11.2026:** Die vier GitHub-Actions-Workflows für Commit `c564ab5` waren erfolgreich, der separate Cloudflare-Workers-Build `1b50e862-1ae7-4128-a635-30e60384a9cd` ist fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
 
 **Eigene Build-Schritte:** Für Cloudflare Workers Builds ist ein fester Build-Befehl notwendig, wenn die Expo-Web-Assets noch nicht vorhanden sind. Das neue `wrangler.jsonc.build.command` ermöglicht `wrangler deploy` auch bei leerem Cloudflare-Dashboard-Build-Kommando auf einer frischen Checkout-Umgebung. Die tatsächliche Cloudflare-Failure-Ursache bleibt ohne Build-Log unbekannt.
 
