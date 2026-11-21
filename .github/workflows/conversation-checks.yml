@@ -23,6 +23,12 @@ on:
 permissions:
   contents: read
 
+# Keep only the latest conversation PR check; expensive simulator builds are
+# intentionally opt-in until signing, device testing and release identity are ready.
+concurrency:
+  group: conversation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   conversation:
     runs-on: ubuntu-latest
@@ -60,6 +66,7 @@ jobs:
           node tests/conversation-ios-prebuild.test.mjs
 
   ios-simulator:
+    if: github.event_name == 'workflow_dispatch'
     name: Compile unsigned iOS Simulator app
     runs-on: macos-26
     timeout-minutes: 45
