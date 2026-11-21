@@ -46,7 +46,7 @@ function loadTypescript(relativePath) {
       return { __esModule: true, default: asyncStorage };
     }
     if (id.startsWith('.')) {
-      return loadTypescript(path.resolve(path.dirname(filename), id + '.ts'));
+      return loadTypescript(path.resolve(path.dirname(filename), id.endsWith('.ts') ? id : id + '.ts'));
     }
     return Module.prototype.require.call(compiled, id);
   };
