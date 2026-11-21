@@ -54,7 +54,7 @@ test("release guard detects missing EAS project and Android package", () => {
   ]);
 });
 
-test("CLI blocks current foreign identity with exit code 2 and never mutates config", () => {
+test("CLI blocks RED POLY until a real EAS owner and project are linked, without mutating config", () => {
   const root = path.resolve(__dirname, "..");
   const appFile = path.join(root, "app.json");
   const easFile = path.join(root, "eas.json");
@@ -65,11 +65,11 @@ test("CLI blocks current foreign identity with exit code 2 and never mutates con
     timeout: 10_000,
   });
   assert.equal(result.status, 2, `expected release block; output: ${result.stderr || result.stdout}`);
-  assert.match(result.stdout, /RELEASE BLOCKED: 8/);
+  assert.match(result.stdout, /RELEASE BLOCKED: 2/);
   assert.deepEqual([fs.readFileSync(appFile, "utf8"), fs.readFileSync(easFile, "utf8")], before);
 });
 
-test("CLI --audit reports release blocker without breaking ordinary QA", () => {
+test("CLI --audit reports missing EAS linkage without blocking ordinary QA", () => {
   const root = path.resolve(__dirname, "..");
   const result = spawnSync(process.execPath, ["scripts/release-identity-guard.cjs", "--audit"], {
     cwd: root,
@@ -77,5 +77,5 @@ test("CLI --audit reports release blocker without breaking ordinary QA", () => {
     timeout: 10_000,
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /RELEASE BLOCKED: 8/);
+  assert.match(result.stdout, /RELEASE BLOCKED: 2/);
 });
