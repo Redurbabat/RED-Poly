@@ -15,6 +15,7 @@ RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Li
 - **Backup:** Über **Profil → Backup & restore** ist ein ausdrücklich gestarteter, geprüfter Export/Restore des Kursfortschritts verfügbar. Eigene Wortlisten lassen sich weiterhin getrennt in **Meine Vokabeln** sichern.
   - Der vollständige Gerätearchiv-Export ist jetzt modular in `src/features/backup/domain/`, `data/` und `ui/` organisiert. Der Gesamtarchiv-Restore bleibt bewusst deaktiviert; bestehende Importpfade und lokale Daten bleiben erhalten.
 - **Fortschritt:** bestehender `progress-v2`-Store wird beibehalten. Der Core-Branch bietet eine **explizite** geprüfte Legacy-Vokabel-Importfunktion; automatische Migration ist nicht aktiviert.
+  - Die Fortschrittsimplementierung liegt geordnet unter `src/features/progress/domain/`, `data/` und `transfer/`; alle bisherigen Modulimporte und `.d.mts`-Vertraege bleiben erhalten.
 - **iOS-Navigation:** Native iPhone-Tabbar mit SF Symbols und systemeigenem iOS-26-Liquid-Glass, Android/Web behalten ihre bisherige Tabbar (Hardwareprüfung ausstehend).
 - **Design und QA:** gemeinsame RED-POLY-UI-Primitive und Entwicklungs-Testseiten; das bestehende Hauptdesign wird schrittweise umgestellt.
 - **Web:** Cloudflare Worker mit statischen Expo-Assets und `GET /api/health`. Das Hosting ist kein Daten-/Sync-Backend.
@@ -96,7 +97,7 @@ Für einen bereits mit GitHub verbundenen Worker unter **Workers & Pages → red
 
 **Ein Deployment-Weg:** Dieses Repository verwendet Cloudflare Workers Builds; GitHub Actions führt nur Validierungen aus. GitHub Actions darf `main` nicht separat automatisch deployen, um konkurrierende Deployments zu verhindern.
 
-**Stand 21.11.2026:** Die vier GitHub-Actions-Workflows für Commit `c564ab5` waren erfolgreich, der separate Cloudflare-Workers-Build `1b50e862-1ae7-4128-a635-30e60384a9cd` ist fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
+**Stand 22.11.2026:** Der externe Cloudflare-Preview-Build zum Commit `5674b2c` und die drei vollstaendig beendeten GitHub-Actions-Workflows waren erfolgreich; der Quality-Job lief noch. Dies ist ein erfolgreicher **Preview-Build**, kein bestaetigter Produktionsrelease. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
 
 **Eigene Build-Schritte:** Für Cloudflare Workers Builds ist ein fester Build-Befehl notwendig, wenn die Expo-Web-Assets noch nicht vorhanden sind. Das neue `wrangler.jsonc.build.command` ermöglicht `wrangler deploy` auch bei leerem Cloudflare-Dashboard-Build-Kommando auf einer frischen Checkout-Umgebung. Die tatsächliche Cloudflare-Failure-Ursache bleibt ohne Build-Log unbekannt.
 

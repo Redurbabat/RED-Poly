@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'src/lib/progress-data.mjs'
+      - 'src/features/progress/**'
       - 'src/lib/progress-data.d.mts'
       - 'src/lib/vocabulary-bridge.mjs'
       - 'src/lib/vocabulary-bridge.d.mts'
@@ -16,6 +17,7 @@ on:
       - 'src/lib/progress-transfer.d.mts'
       - 'src/lib/store.ts'
       - 'tests/progress-data.test.mjs'
+      - 'tests/progress-architecture.test.mjs'
       - 'tests/vocabulary-bridge.test.mjs'
       - 'tests/progress-write-guard.test.mjs'
       - 'tests/progress-storage.test.mjs'

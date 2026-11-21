@@ -13,6 +13,10 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     │   │   ├── vocabulary.tsx       Vokabellisten
     │   │   └── backup.tsx           Sicherung und Wiederherstellung
     │   ├── features/                Fachbereiche (analog RED ION bereiche/)
+    │   │   ├── progress/             Kursfortschritt und Migration
+    │   │   │   ├── domain/
+    │   │   │   ├── data/
+    │   │   │   └── transfer/
     │   │   ├── conversation/        Gespraechs-Engine und Spracherkennung
     │   │   │   ├── domain/        Offline-Engine, Sprachen, Niveaus, Tutor-Demo
     │   │   │   │   └── engine.ts
@@ -36,7 +40,7 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     │   ├── lib/                     Gemeinsamer Kern (analog RED ION kern/ und core/)
     │   │   ├── store.ts             Lernfortschritt
     │   │   ├── srs.ts               Wiederholungsalgorithmus
-    │   │   └── progress-*.mjs       Backup, Migration und Schreibschutz
+    │   │   └── progress-*.mjs       Stabile API-Weiterleitungen und Typvertraege
     │   ├── components/              UI-Schale, Navigation und Uebungselemente
     │   └── content/                 Gebuendelte Sprachkurse
     ├── worker/                       Cloudflare Worker, keine Nutzer-Synchronisation
@@ -65,6 +69,23 @@ Die Datei `src/lib/complete-device-backup.mjs` ist eine kompatible Weiterleitung
 **Wichtig:** Ein vollstaendiges Geraetearchiv kann gelesen und exportiert, aber weiterhin **nicht automatisch zurueckgespielt** werden. Der getrennte Kursfortschritt-Restore unterliegt weiterhin seiner ausdruecklichen Bestaetigung und seinen eigenen Schutzpruefungen. Keine Cloud-Synchronisierung und keine Netzwerkuebertragung.
 
 Tests: `bun run test:backup:architecture` und `bun run test:integration`.
+
+## Lernfortschritt als separater Fachbereich (22.11.2026)
+
+```text
+src/features/progress/
+├── domain/
+│   └── progress-data.mjs          Fortschrittsdaten, Validierung und Migration
+├── data/
+│   ├── progress-storage.mjs       Serialisierte Speicherung
+│   └── progress-write-guard.mjs   Schreibschutz und Ablaufkoordination
+└── transfer/
+    └── progress-transfer.mjs      Geprüfter Kursfortschritt-Import und -Export
+```
+
+Die bisherige `src/lib/progress-*.mjs`-API wird weiterhin unveraendert exportiert. Die vier `src/lib/progress-*.d.mts`-Typvertraege und der bestehende `src/lib/store.ts` bleiben erhalten; keine Migration, kein neuer Persistenzschluessel und keine automatische Verbindung mit einer Cloud. Die Uebungs-SRS-Funktion `src/lib/srs.ts` bleibt als gemeinsame, plattformuebergreifende Logik an ihrem bisherigen Ort. Der bestehende Import von WordPecker-Daten erhaelt die Schreibbarrieren.
+
+`bun run test:progress:architecture` prueft neben den bestehenden Daten-Regressionen die Runtime-Kompatibilitaet, Speicherkennungen und Schutzmechanismen.
 
 ## 2. Generierte Ausgaben (build/ – automatisch, nicht in Git)
 
