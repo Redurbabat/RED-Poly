@@ -1,6 +1,6 @@
 # RED POLY — ARCHITEKTUR.md
 
-**Stand:** 14.11.2026  
+**Stand:** 14.11.2026
 **Status:** Istaufnahme aus dem GitHub-Repository `Redurbabat/RED-Poly` plus **explizit gekennzeichnete Zielarchitektur**. Eine technische Zusammenführung der drei Anwendungen ist noch nicht belegt.
 
 ## 1. Produktziel und Architekturentscheidung

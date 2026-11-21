@@ -73,9 +73,9 @@ RED POLY ist die eigenständige Sprachlern-App der RED-Markenfamilie. Der bereit
 
 ## Prioritäten [Richtwert]
 
-**P0:** Datenverlust, Geheimnisse, falsche Repository-/Store-Identität, unklare Rechte.  
-**P1:** Lauffähige Haupt-App, bestehende Lektionen/Audio/SRS, reproduzierbare Tests.  
-**P2:** WordPecker-Vokabelfunktionen *integrieren*, danach Mural-Gespräche *integrieren*.  
+**P0:** Datenverlust, Geheimnisse, falsche Repository-/Store-Identität, unklare Rechte.
+**P1:** Lauffähige Haupt-App, bestehende Lektionen/Audio/SRS, reproduzierbare Tests.
+**P2:** WordPecker-Vokabelfunktionen *integrieren*, danach Mural-Gespräche *integrieren*.
 **P3:** RED-Morph-Design, weitere Sprachen, Desktop-Verpackung und optionale Cloud.
 
 **Fertig** bedeutet: umgesetzt, keine bestehende Funktion stillschweigend verloren, passende Prüfungen bestanden, Restgrenzen dokumentiert. Eine PR oder ein erzeugtes Artefakt allein bedeutet nicht „fertig“.

@@ -1,6 +1,6 @@
 # RED POLY — ENTSCHEIDUNGEN.md
 
-**Stand:** 14.11.2026  
+**Stand:** 14.11.2026
 **Zweck:** Entscheidungen, ihre Herkunft, ihren Status und ihre Folgen nachvollziehbar halten. Keine rückwirkend erfundenen Zustimmungen.
 
 ## Leseregel
@@ -14,21 +14,21 @@
 ## Produkt und technische Basis
 
 ### E001 — Name und Repository [Bestätigt]
-**Entscheid:** Die App heisst **RED POLY** und wird unter `Redurbabat/RED-Poly` entwickelt.  
-**Grund:** Einheitliche RED-Markenfamilie (RED ION, RED BIT, RED FIT, RED LOOP, RED MORPH).  
-**Folge:** Eigenes Icon, eigener App-Name und eigene Paketidentitäten; bisherige fremde Metadaten nicht als finale Marke behandeln.  
+**Entscheid:** Die App heisst **RED POLY** und wird unter `Redurbabat/RED-Poly` entwickelt.
+**Grund:** Einheitliche RED-Markenfamilie (RED ION, RED BIT, RED FIT, RED LOOP, RED MORPH).
+**Folge:** Eigenes Icon, eigener App-Name und eigene Paketidentitäten; bisherige fremde Metadaten nicht als finale Marke behandeln.
 **Quelle:** Eigentümerentscheidung am 14.11.2026.
 
 ### E002 — Haupt-App [Bestätigt]
-**Entscheid:** **Lingo Lessons** bildet die vorhandene Basis. Bestehende Navigation, Lektionen, XP, SRS und lokaler Lernfortschritt werden erhalten; kein kompletter Neustart.  
+**Entscheid:** **Lingo Lessons** bildet die vorhandene Basis. Bestehende Navigation, Lektionen, XP, SRS und lokaler Lernfortschritt werden erhalten; kein kompletter Neustart.
 **Quelle:** Auswahl des Eigentümers vor dem Import.
 
 ### E003 — Zusätzliche Quellen [Bestätigt]
-**Entscheid:** **WordPecker** dient als Quelle für Wortlisten, Vokabeltraining und ggf. KI-Inhalte; **Mural** als Quelle für Sprachgespräche, Spracherkennung und adaptive Lernabläufe.  
+**Entscheid:** **WordPecker** dient als Quelle für Wortlisten, Vokabeltraining und ggf. KI-Inhalte; **Mural** als Quelle für Sprachgespräche, Spracherkennung und adaptive Lernabläufe.
 **Grenze:** Quellcode hochzuladen ist noch keine Funktionsintegration. Nicht die komplette Oberfläche, Cloud-Bezahlstrecken oder Anmeldelogik doppelt starten.
 
 ### E004 — Ein Produkt statt drei Apps [Bestätigt]
-**Entscheid:** Eine einzige RED-POLY-App mit gemeinsamer Navigation und einem konsistenten Lernfortschritt.  
+**Entscheid:** Eine einzige RED-POLY-App mit gemeinsamer Navigation und einem konsistenten Lernfortschritt.
 **Konsequenz:** Eingliederung über fachliche Schnittstellen; keine drei unabhängigen Datenspeicher im Nutzerfluss.
 
 ### E005 — Stand des Imports [Bestand]
@@ -36,8 +36,8 @@ Am 14.11.2026 enthält `main` eine Expo-/React-Native-App **direkt in der Reposi
 **Achtung:** Die importierte `README.md` beschreibt teils ein älteres Monorepo mit `mobile/`, obwohl die mobile App aktuell in der Wurzel liegt. Dokumentation und Startbefehle müssen am tatsächlichen Bestand ausgerichtet werden.
 
 ### E006 — Plattformstrategie [Projektregel]
-**Kurzfristig:** Expo/React Native für **iPhone, Android und Web**, die bereits im verwendeten Stack vorgesehen sind.  
-**Später:** Windows und macOS nach technischer Prüfung einer gemeinsamen Desktop-Lösung.  
+**Kurzfristig:** Expo/React Native für **iPhone, Android und Web**, die bereits im verwendeten Stack vorgesehen sind.
+**Später:** Windows und macOS nach technischer Prüfung einer gemeinsamen Desktop-Lösung.
 **Grenze:** Noch keinen nativen Windows-/macOS-Build, keine signierte IPA und kein App-Store-Release behaupten.
 
 ## Integrations- und Datenregeln
