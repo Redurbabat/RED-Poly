@@ -54,15 +54,18 @@ bunx wrangler@4 deploy
 Für einen bereits mit GitHub verbundenen Worker unter **Workers & Pages → red-poly → Settings → Builds**:
 
 - **Production branch:** `main`; **Root directory:** Repository-Root (`/`).
-- **Build command:** `bun run build:web`.
+- **Build command:** `bun run build:web` (empfohlen). Falls das Dashboard keinen Build-Befehl gesetzt hat, erstellt `wrangler.jsonc → build.command` die statische Web-Version auch bei einem regulären Wrangler-Deploy. Cloudflare-Preview-Builds sollten den Build-Befehl trotzdem ausdrücklich setzen.
 - **Deploy command (Produktion):** `bunx wrangler@4 deploy`.
 - **Preview command:** `bunx wrangler@4 preview` (Cloudflare Workers Previews).
 - **Worker-Name** muss `red-poly` entsprechen.
 - **Bun:** `bun@1.3.5` ist in `package.json` festgelegt; der Build benötigt `dist/index.html`.
+- **Für lokale Vorschauen:** `bun run cloudflare:preview` erzeugt vorher ausdrücklich das Web-Bundle. Workers Previews benötigt Wrangler >= 4.135.0.
 
 **Ein Deployment-Weg:** Dieses Repository verwendet Cloudflare Workers Builds; GitHub Actions führt nur Validierungen aus. GitHub Actions darf `main` nicht separat automatisch deployen, um konkurrierende Deployments zu verhindern.
 
-**Stand 21.11.2026:** Auf PR #8 ist die lokale GitHub-Actions-Worker-Prüfung für Commit `495b25a` erfolgreich, aber der separate Cloudflare-Workers-Build `a6c42418-fd53-4fce-8e46-225a574d70db` fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
+**Stand 21.11.2026:** Die lokale GitHub-Actions-Worker-Prüfung für Commit `503f5e0` ist erfolgreich, aber der separate Cloudflare-Workers-Build `2c5319b8-f70e-4acd-a8fb-9a86bb8a12b5` fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
+
+**Eigene Build-Schritte:** Für Cloudflare Workers Builds ist ein fester Build-Befehl notwendig, wenn die Expo-Web-Assets noch nicht vorhanden sind. Das neue `wrangler.jsonc.build.command` ermöglicht `wrangler deploy` auch bei leerem Cloudflare-Dashboard-Build-Kommando auf einer frischen Checkout-Umgebung. Die tatsächliche Cloudflare-Failure-Ursache bleibt ohne Build-Log unbekannt.
 
 **Bei fehlgeschlagenem Cloudflare-Check:** Die GitHub-Actions-Tests allein beweisen kein erfolgreiches Cloudflare-Preview. Den roten `Workers Builds: red-poly`-Check öffnen, im Cloudflare-Dashboard `Deployments → View Build History` den Build auswählen und **die erste relevante Fehlermeldung im Log** prüfen. Besonders Build-/Deploy-Kommando, Root-Verzeichnis, Worker-Name und API-Token verifizieren. Ohne Dashboard-Log lässt sich die Fehlerursache nicht sicher bestimmen.
 
