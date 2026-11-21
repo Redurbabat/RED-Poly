@@ -1,9 +1,2 @@
-/** Strict offline answer validation: case/spacing-insensitive, accent-sensitive. */
-export function normalizeWritingAnswer(value: string): string {
-  return value.normalize("NFC").trim().replace(/\s+/gu, " ").toLocaleLowerCase();
-}
-
-export function checkWritingAnswer(answer: string, expected: string): boolean {
-  const normalized = normalizeWritingAnswer(answer);
-  return normalized.length > 0 && normalized === normalizeWritingAnswer(expected);
-}
+/** Compatibility barrel: app imports remain stable while the implementation lives in ./exercises/writing. */
+export * from "./exercises/writing";
