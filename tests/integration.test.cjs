@@ -88,3 +88,12 @@ test("Cloudflare Worker can build its own static assets without separate dashboa
   assert.equal(cf.assets.directory, "./dist");
   assert.equal(cf.assets.not_found_handling, "single-page-application");
 });
+
+test("Wrangler CI checks a clean-build path rather than relying on pre-existing dist", () => {
+  const workflow = read(".github/workflows/cloudflare-workers.yml");
+  const source = workflow.indexOf("test ! -e dist/index.html");
+  const dryRun = workflow.indexOf("wrangler@4 deploy --dry-run");
+  const exported = workflow.indexOf("test -s dist/index.html");
+  assert.ok(source >= 0 && dryRun > source && exported > dryRun);
+  assert.doesNotMatch(workflow, /run:\s*bun run build:web/);
+});
