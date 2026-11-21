@@ -45,8 +45,8 @@ bunx wrangler@4 deploy
 
 - Worker-Konfiguration: `wrangler.jsonc`.
 - Backend: `worker/index.ts` (nur Health-Check und Web-Assets).
-- GitHub Actions: `.github/workflows/cloudflare-workers.yml` (PR: Build und Dry-Run; Push auf `main`: Deployment).
-- **Erforderliche GitHub-Actions-Secrets für automatisches Deployment:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+- GitHub Actions: `.github/workflows/cloudflare-workers.yml` prüft auf PRs und `main` den Expo-Web-Build, das Worker-Bundle und die lokalen HTTP-Routen, **ohne zu deployen**.
+- Das automatische Deployment übernimmt ausschliesslich die bereits verbundene **Cloudflare Workers Builds** GitHub-Integration. Dafür sind keine `CLOUDFLARE_*`-Secrets im GitHub-Repository nötig; der Cloudflare-Build verwendet den im Dashboard gewählten Build-Token.
 - Eine erfolgreiche Veröffentlichung benötigt Zugriff auf das eigene Cloudflare-Konto. Noch keine Cloud-Synchronisation.
 
 ### Cloudflare Workers Builds (GitHub-Integration)
@@ -60,7 +60,9 @@ Für einen bereits mit GitHub verbundenen Worker unter **Workers & Pages → red
 - **Worker-Name** muss `red-poly` entsprechen.
 - **Bun:** `bun@1.3.5` ist in `package.json` festgelegt; der Build benötigt `dist/index.html`.
 
-**Nicht zwei Deploy-Wege gleichzeitig aktivieren:** Workers Builds *oder* den Deploy-Job von GitHub Actions verwenden. Bei Workers Builds erfolgt die Authentifizierung über das Cloudflare-Konto / den gewählten Build-Token; die GitHub-Secrets sind nur für den GitHub-Actions-Deploy-Job nötig.
+**Ein Deployment-Weg:** Dieses Repository verwendet Cloudflare Workers Builds; GitHub Actions führt nur Validierungen aus. GitHub Actions darf `main` nicht separat automatisch deployen, um konkurrierende Deployments zu verhindern.
+
+**Stand 21.11.2026:** Auf PR #8 ist die lokale GitHub-Actions-Worker-Prüfung für Commit `495b25a` erfolgreich, aber der separate Cloudflare-Workers-Build `a6c42418-fd53-4fce-8e46-225a574d70db` fehlgeschlagen. Ein grüner Dry-Run beweist keine Cloudflare-Veröffentlichung.
 
 **Bei fehlgeschlagenem Cloudflare-Check:** Die GitHub-Actions-Tests allein beweisen kein erfolgreiches Cloudflare-Preview. Den roten `Workers Builds: red-poly`-Check öffnen, im Cloudflare-Dashboard `Deployments → View Build History` den Build auswählen und **die erste relevante Fehlermeldung im Log** prüfen. Besonders Build-/Deploy-Kommando, Root-Verzeichnis, Worker-Name und API-Token verifizieren. Ohne Dashboard-Log lässt sich die Fehlerursache nicht sicher bestimmen.
 
