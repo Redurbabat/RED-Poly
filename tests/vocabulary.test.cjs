@@ -199,3 +199,22 @@ test('storage: rejects corrupted counters and invalid SRS review data', () => {
   })])]);
   assert.throws(() => storage.cleanVocabulary(invalidReview), /Invalid vocabulary review/);
 });
+
+test('architecture: public feature entry points forward the original runtime functions', () => {
+  const cases = [
+    ['storage', 'data/storage', ['loadVocabulary', 'saveVocabulary', 'cleanVocabulary', 'applyVocabularyReview']],
+    ['transfer', 'data/transfer', ['exportVocabularyJson', 'mergeVocabularyJson']],
+    ['statistics', 'analytics/statistics', ['vocabularyStatistics']],
+    ['multiple-choice', 'exercises/multiple-choice', ['makeMultipleChoiceQuestion', 'checkMultipleChoiceAnswer']],
+    ['word-bank', 'exercises/word-bank', ['makeWordBankQuestion', 'checkWordBankAnswer']],
+    ['writing', 'exercises/writing', ['checkWritingAnswer', 'normalizeWritingAnswer']],
+  ];
+  for (const [entry, implementation, exports] of cases) {
+    const publicApi = loadTypescript('src/features/vocabulary/' + entry + '.ts');
+    const nested = loadTypescript('src/features/vocabulary/' + implementation + '.ts');
+    for (const name of exports) {
+      assert.equal(publicApi[name], nested[name], entry + ': ' + name);
+    }
+  }
+  assert.equal(storage.VOCABULARY_STORAGE_KEY, 'red-poly:vocabulary-v1');
+});
