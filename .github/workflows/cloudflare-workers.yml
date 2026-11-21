@@ -66,9 +66,7 @@ jobs:
           curl -fsS http://127.0.0.1:8787/lesson/cloudflare-smoke > /tmp/red-poly-deeplink.html
           grep -qi '<html' /tmp/red-poly-deeplink.html
 
-      - name: Deploy to Cloudflare Workers
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        run: bunx wrangler@4 deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Publish via Cloudflare Workers Builds instead. The repository already has
+      # Cloudflare's native GitHub integration, including PR Preview checks.
+      # A second deploy from this workflow would create duplicate/racing releases.
+      # This job deliberately validates the Worker without deploying.
