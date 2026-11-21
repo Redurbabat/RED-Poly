@@ -44,7 +44,10 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "build:web": "expo export --platform web",
+    "preview:cloudflare": "npm run build:web && npx --yes wrangler@4 dev",
+    "deploy:cloudflare": "npm run build:web && npx --yes wrangler@4 deploy"
   },
   "private": true
 }
