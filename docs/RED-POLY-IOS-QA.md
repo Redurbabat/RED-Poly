@@ -31,3 +31,31 @@ Die Haupt-App bleibt die bestehende Expo-/React-Native-App. Das iOS-JavaScript-B
 `scripts/release-identity-guard.cjs` prüft nur offensichtliche, syntaktische und **bekannt fremde** Release-Identitäten. Er kann nicht verifizieren, wem ein EAS-/Apple-Konto tatsächlich gehört. In `--audit`-Modus läuft er rein lesend und endet selbst bei gesperrtem Release mit Exit-Code 0, damit Web-/QA-Änderungen weiter geprüft werden können. **Ohne `--audit`** schlägt er bei Problemen mit Exit-Code 2 fehl.
 
 Die Browser-Screenshots und Expo-Bundle-Exporte ersetzen weder Simulator- noch Hardwaretests.
+
+## Native iPhone-Tabbar (Integrations-PR #8)
+
+**Neu:** Die drei bestehenden Tabs `Learn`, `Practice` und `Profile`
+nutzen auf **iOS** das echte `NativeTabs`-System aus
+`expo-router/unstable-native-tabs` (Expo SDK 56). Ab iOS 26 zeichnet
+Apple die systemeigene Liquid-Glass-Tabbar; es wird **kein** zweites
+künstliches Dock oder Glas-Overlay angezeigt.
+
+Implementierung:
+- `src/app/(tabs)/_layout.tsx` lädt den plattformaufgelösten Navigator.
+- `src/components/navigation/poly-tabs.ios.tsx` verwendet
+  `NativeTabs.Trigger`, `Trigger.Label`, SF Symbols und dynamisches Tint.
+- `src/components/navigation/poly-tabs.tsx` enthält die unveränderte
+  Expo-Router-JavaScript-Tabbar für Android/Web. Eine zweite Navigation
+  entsteht dadurch nicht.
+- Onboarding, Lernpfade, Backups, Wortlisten und Konversation behalten
+  dieselben Routen und gespeicherten Daten.
+
+Technische Quelle: [Expo Native Tabs, SDK 56](https://docs.expo.dev/versions/v56.0.0/sdk/router/native-tabs/).
+
+**Abnahme ausstehend:** Ein Expo-iOS-JavaScript-Export und TypeScript-Check
+prüfen das Importieren der Implementierung. Sie beweisen **nicht**, dass
+die Tabbar auf iOS 26 tatsächlich Liquid Glass zeigt oder dass Safe Areas,
+Tastatur, Dynamic Type, Reduce Transparency, Navigation zurück aus Modals
+oder Dark Mode auf einem physischen iPhone korrekt funktionieren.
+Der native Tabbar-Renderer ist in Expo Router 56 noch eine Beta-API.
+Vor Freigabe: nativen Simulator-Build und echten iPhone-Test durchführen.

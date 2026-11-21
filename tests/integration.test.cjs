@@ -47,3 +47,20 @@ test("the real backup route is reachable from Profile and uses guarded persisten
   assert.match(backup, /PolyBackupTransfer/);
   assert.match(read("src/lib/store.ts"), /export async function restoreProgressBackup/);
 });
+
+test("iPhone gets a single real system tab bar while Android/web keep existing tabs", () => {
+  const entry = read("src/app/(tabs)/_layout.tsx");
+  const ios = read("src/components/navigation/poly-tabs.ios.tsx");
+  const other = read("src/components/navigation/poly-tabs.tsx");
+  assert.match(entry, /import PolyTabNavigator from "@\/components\/navigation\/poly-tabs"/);
+  assert.match(ios, /expo-router\/unstable-native-tabs/);
+  assert.match(ios, /<NativeTabs[\s>]/);
+  assert.equal((ios.match(/<NativeTabs\.Trigger name=/g) || []).length, 3);
+  for (const tab of ["index", "practice", "profile"]) {
+    assert.ok(ios.includes('name="' + tab + '"'), tab);
+    assert.ok(other.includes('name="' + tab + '"'), tab);
+  }
+  assert.match(ios, /Trigger\.Icon sf=/);
+  assert.ok(!ios.includes("GlassView"), "do not overlay the iOS system bar with fake glass");
+  assert.match(other, /import \{ Tabs \} from "expo-router"/);
+});
