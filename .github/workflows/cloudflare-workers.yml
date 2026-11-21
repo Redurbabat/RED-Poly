@@ -34,6 +34,11 @@ jobs:
       - name: Verify web export was created by Wrangler
         run: test -s dist/index.html
 
+      - name: Verify supported Wrangler Preview CLI (no credentials or upload)
+        run: |
+          bunx wrangler@4.135.0 preview --help > /tmp/red-poly-preview-help.txt
+          grep -qi preview /tmp/red-poly-preview-help.txt
+
       - name: Smoke test actual local Cloudflare Worker and SPA deep links
         shell: bash
         run: |
