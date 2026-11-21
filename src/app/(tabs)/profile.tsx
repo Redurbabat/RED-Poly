@@ -216,6 +216,23 @@ export default function ProfileScreen() {
             Device follows your phone&apos;s light or dark setting.
           </Text>
         </View>
+
+        <Pressable
+          style={styles.settingsCard}
+          onPress={() => router.push("/backup")}
+          accessibilityRole="button"
+          accessibilityLabel="Back up or restore learning progress"
+          accessibilityHint="Open the local RED POLY backup and restore screen"
+        >
+          <View style={styles.settingsHeader}>
+            <Ionicons name="shield-checkmark-outline" size={22} color={colors.green} />
+            <Text style={styles.settingsTitle} maxFontSizeMultiplier={1.3}>Backup & restore</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+          <Text style={styles.settingsHint} maxFontSizeMultiplier={1.3}>
+            Securely export or restore your local course progress. Never uploads automatically.
+          </Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

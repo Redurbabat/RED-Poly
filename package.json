@@ -18,6 +18,7 @@
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.10",
     "expo-speech": "~56.0.3",
+    "expo-speech-recognition": "56.0.4",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",
@@ -44,7 +45,22 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:core": "node --test tests/progress-data.test.mjs tests/vocabulary-bridge.test.mjs tests/progress-write-guard.test.mjs tests/progress-transfer.test.mjs tests/progress-storage.test.mjs tests/progress-architecture.test.mjs",
+    "build:web": "expo export --platform web",
+    "cloudflare:dev": "bun run build:web && bunx wrangler@4 dev",
+    "cloudflare:deploy": "bun run build:web && bunx wrangler@4 deploy",
+    "test:integration": "node --test tests/integration.test.cjs tests/vocabulary.test.cjs tests/quality.test.cjs tests/learning-architecture.test.cjs tests/backup-envelope.test.cjs tests/release-identity.test.cjs && bun run test:core && node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs tests/conversation-architecture.test.mjs && node --test tests/build-layout.test.mjs && node --test tests/complete-device-backup.test.mjs && node --test tests/backup-architecture.test.mjs",
+    "build": "expo export --platform web",
+    "cloudflare:preview": "bun run build:web && bunx wrangler@4.135.0 preview",
+    "build:structure": "node scripts/build-layout.mjs",
+    "build:web:organized": "bun run build:web && node scripts/build-layout.mjs --stage-web",
+    "test:build-structure": "node --test tests/build-layout.test.mjs",
+    "test:conversation:architecture": "node --experimental-strip-types --test tests/conversation-architecture.test.mjs",
+    "test:backup:architecture": "node --test tests/backup-architecture.test.mjs tests/complete-device-backup.test.mjs",
+    "test:progress:architecture": "node --test tests/progress-architecture.test.mjs",
+    "test:learning:architecture": "node --test tests/learning-architecture.test.cjs"
   },
-  "private": true
+  "private": true,
+  "packageManager": "bun@1.3.5"
 }

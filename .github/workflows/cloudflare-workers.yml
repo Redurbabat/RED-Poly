@@ -1,0 +1,87 @@
+name: RED POLY Cloudflare Workers
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-and-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pinned Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Bundle Worker and automatically build Expo SPA from clean checkout
+        # Wrangler runs wrangler.jsonc.build.command; no dist/ exists beforehand.
+        run: |
+          test ! -e dist/index.html
+          bunx wrangler@4 deploy --dry-run --outdir .wrangler-preview
+
+      - name: Verify web export was created by Wrangler
+        run: test -s dist/index.html
+
+      - name: Validate RED POLY artifact directory structure
+        run: |
+          bun run test:build-structure
+          node scripts/build-layout.mjs --stage-web
+          test -s build/visual-web-emission/index.html
+          test -s build/visual-web-merged/assets/index.html
+          test -s build/visual-web-merged/worker/index.ts
+          test -s build/metadata/build-layout.json
+          bunx wrangler@4 deploy --config build/visual-web-merged/wrangler.jsonc --dry-run --outdir .wrangler-preview/merged
+
+      - name: Verify supported Wrangler Preview CLI (no credentials or upload)
+        run: |
+          bunx wrangler@4.135.0 preview --help > /tmp/red-poly-preview-help.txt
+          grep -qi preview /tmp/red-poly-preview-help.txt
+
+      - name: Smoke test actual local Cloudflare Worker and SPA deep links
+        shell: bash
+        run: |
+          bunx wrangler@4 dev --local --ip 127.0.0.1 --port 8787 > /tmp/red-poly-worker.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true' EXIT
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8787/api/health > /tmp/red-poly-health.json; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::Local Cloudflare Worker failed to start"
+            tail -100 /tmp/red-poly-worker.log
+            exit 1
+          fi
+
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('/tmp/red-poly-health.json','utf8')); if(data.status!=='ok') process.exit(1);"
+          status=$(curl -sS -o /tmp/red-poly-missing-api.json -w '%{http_code}' http://127.0.0.1:8787/api/not-implemented)
+          test "$status" = "404" || { echo "::error::Unknown API route responded $status (expected 404)"; exit 1; }
+          curl -fsS http://127.0.0.1:8787/ > /tmp/red-poly-home.html
+          grep -qi '<html' /tmp/red-poly-home.html
+          curl -fsS http://127.0.0.1:8787/lesson/cloudflare-smoke > /tmp/red-poly-deeplink.html
+          grep -qi '<html' /tmp/red-poly-deeplink.html
+
+      # Publish via Cloudflare Workers Builds instead. The repository already has
+      # Cloudflare's native GitHub integration, including PR Preview checks.
+      # A second deploy from this workflow would create duplicate/racing releases.
+      # This job deliberately validates the Worker without deploying.

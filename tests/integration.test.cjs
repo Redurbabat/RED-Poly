@@ -1,0 +1,137 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const read = (file) => fs.readFileSync(path.join(__dirname, "..", file), "utf8");
+const readJson = (file) => JSON.parse(read(file));
+
+test("vocabulary and conversation are reachable from the existing Practice tab", () => {
+  const practice = read("src/app/(tabs)/practice.tsx");
+  assert.match(practice, /router\.push\("\/vocabulary"\)/);
+  assert.match(practice, /router\.push\("\/conversation"\)/);
+  assert.match(practice, /offline example tutor/i);
+  assert.match(read("src/app/vocabulary.tsx"), /export default function VocabularyScreen/);
+  assert.match(read("src/app/conversation.tsx"), /export default function ConversationScreen/);
+});
+
+test("RED POLY identity and speech permissions are preserved with SPA export", () => {
+  const expo = readJson("app.json").expo;
+  assert.equal(expo.name, "RED POLY");
+  assert.equal(expo.ios.bundleIdentifier, "com.redurbabat.redpoly");
+  assert.equal(expo.android.package, "com.redurbabat.redpoly");
+  assert.equal(expo.web.output, "single");
+  assert.ok(expo.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === "expo-speech-recognition"));
+  assert.ok(!expo.owner);
+  assert.ok(!expo.extra?.eas?.projectId);
+});
+
+test("Expo speech, regression tests, and Cloudflare remain configured", () => {
+  const pkg = readJson("package.json");
+  assert.equal(pkg.dependencies["expo-speech-recognition"], "56.0.4");
+  for (const script of ["build:web", "cloudflare:deploy", "test:core", "test:integration"]) {
+    assert.equal(typeof pkg.scripts[script], "string");
+  }
+  const cf = readJson("wrangler.jsonc");
+  assert.equal(cf.assets.directory, "./dist");
+  assert.ok(cf.assets.run_worker_first.includes("/api/*"));
+  assert.match(read("worker/index.ts"), /api\/health/);
+  assert.match(read("src/lib/store.ts"), /progress-v2/);
+});
+
+test("the real backup route is reachable from Profile and uses guarded persistence", () => {
+  const profile = read("src/app/(tabs)/profile.tsx");
+  const backup = read("src/app/backup.tsx");
+  assert.match(profile, /router\.push\("\/backup"\)/);
+  assert.match(backup, /exportPersistedProgressBackup/);
+  assert.match(backup, /restoreProgressBackup/);
+  assert.match(backup, /PolyBackupTransfer/);
+  assert.match(read("src/lib/store.ts"), /export async function restoreProgressBackup/);
+});
+
+test("iPhone gets a single real system tab bar while Android/web keep existing tabs", () => {
+  const entry = read("src/app/(tabs)/_layout.tsx");
+  const ios = read("src/components/navigation/poly-tabs.ios.tsx");
+  const other = read("src/components/navigation/poly-tabs.tsx");
+  assert.match(entry, /import PolyTabNavigator from "@\/components\/navigation\/poly-tabs"/);
+  assert.match(ios, /expo-router\/unstable-native-tabs/);
+  assert.match(ios, /<NativeTabs[\s>]/);
+  assert.equal((ios.match(/<NativeTabs\.Trigger name=/g) || []).length, 3);
+  for (const tab of ["index", "practice", "profile"]) {
+    assert.ok(ios.includes('name="' + tab + '"'), tab);
+    assert.ok(other.includes('name="' + tab + '"'), tab);
+  }
+  assert.match(ios, /Trigger\.Icon sf=/);
+  assert.ok(!ios.includes("GlassView"), "do not overlay the iOS system bar with fake glass");
+  assert.match(other, /import \{ Tabs \} from "expo-router"/);
+});
+
+test("Cloudflare publishing has one owner: Workers Builds, GitHub Actions only validates", () => {
+  const workflow = read(".github/workflows/cloudflare-workers.yml");
+  const readme = read("README.md");
+  assert.match(workflow, /wrangler@4 deploy --dry-run/);
+  assert.match(workflow, /wrangler@4 dev --local/);
+  assert.doesNotMatch(workflow, /run:\s*(bunx|npx) wrangler@4 deploy\s*$/m);
+  assert.doesNotMatch(workflow, /secrets\.CLOUDFLARE_API_TOKEN/);
+  assert.match(readme, /Cloudflare Workers Builds/);
+  const config = readJson("wrangler.jsonc");
+  assert.equal(config.name, "red-poly");
+  assert.equal(config.main, "./worker/index.ts");
+  assert.equal(config.assets.binding, "ASSETS");
+});
+
+test("Cloudflare Worker can build its own static assets without separate dashboard build configuration", () => {
+  const pkg = readJson("package.json");
+  const cf = readJson("wrangler.jsonc");
+  assert.equal(pkg.scripts.build, "expo export --platform web");
+  assert.equal(cf.build.command, "bun run build:web");
+  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4.135.0 preview");
+  assert.equal(cf.assets.directory, "./dist");
+  assert.equal(cf.assets.not_found_handling, "single-page-application");
+});
+
+test("Wrangler CI checks a clean-build path rather than relying on pre-existing dist", () => {
+  const workflow = read(".github/workflows/cloudflare-workers.yml");
+  const source = workflow.indexOf("test ! -e dist/index.html");
+  const dryRun = workflow.indexOf("wrangler@4 deploy --dry-run");
+  const exported = workflow.indexOf("test -s dist/index.html");
+  assert.ok(source >= 0 && dryRun > source && exported > dryRun);
+  assert.doesNotMatch(workflow, /run:\s*bun run build:web/);
+});
+
+test("Cloudflare Preview configuration is declared without production data bindings", () => {
+  const config = readJson("wrangler.jsonc");
+  const pkg = readJson("package.json");
+  assert.equal(config.workers_dev, true);
+  assert.equal(config.preview_urls, true);
+  assert.deepEqual(config.previews, {});
+  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4.135.0 preview");
+  assert.equal(config.assets.binding, "ASSETS");
+});
+
+test("one read-only archive exports all local stores without destructive restore", () => {
+  const route = read("src/app/backup.tsx");
+  const ui = read("src/features/backup/ui/complete-backup-export.tsx");
+  const adapter = read("src/features/backup/data/device-export.ts");
+  const model = read("src/features/backup/domain/complete-device-backup.mjs");
+  assert.match(route, /<CompleteBackupExport/);
+  assert.match(adapter, /exportPersistedProgressBackup/);
+  assert.match(adapter, /loadVocabulary/);
+  assert.match(adapter, /loadConversation/);
+  assert.match(ui, /Gesamtes Archiv erzeugen/);
+  assert.match(ui, /Nur Export/);
+  assert.match(model, /restoreSupported: false/);
+});
+
+test("backup architecture separates the pure archive domain, native storage adapter and UI without breaking imports", () => {
+  const legacyModel = read("src/lib/complete-device-backup.mjs");
+  const legacyAdapter = read("src/features/backup/device-export.ts");
+  const legacyUI = read("src/components/complete-backup-export.tsx");
+  const pkg = readJson("package.json");
+  assert.match(legacyModel, /export \* from "\.\.\/features\/backup\/domain\/complete-device-backup\.mjs"/);
+  assert.match(legacyAdapter, /export \* from "\.\/data\/device-export"/);
+  assert.match(legacyUI, /CompleteBackupExport.*from "@\/features\/backup\/ui\/complete-backup-export"/);
+  assert.match(read("src/features/backup/domain/complete-device-backup.mjs"), /restoreSupported: false/);
+  assert.match(read("src/features/backup/data/device-export.ts"), /exportPersistedProgressBackup/);
+  assert.match(read("src/features/backup/ui/complete-backup-export.tsx"), /Nur Export/);
+  assert.ok(pkg.scripts["test:integration"].includes("tests/backup-architecture.test.mjs"));
+});

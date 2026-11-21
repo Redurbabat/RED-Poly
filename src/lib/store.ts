@@ -3,6 +3,27 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isDue, reviewWord, type SrsEntry } from "./srs";
+import { mergeWordPeckerVocabulary } from "./vocabulary-bridge.mjs";
+import { createProgressWriteGuard } from "./progress-write-guard.mjs";
+import { createSerializedProgressStorage } from "./progress-storage.mjs";
+import {
+  exportVerifiedProgressBackup as exportGuardedBackup,
+  restoreVerifiedProgressBackup as restoreGuardedBackup,
+  importVerifiedWordPeckerVocabulary as importGuardedWordPecker,
+} from "./progress-transfer.mjs";
+import {
+  PROGRESS_STORAGE_KEY,
+  PROGRESS_STORAGE_VERSION,
+  addVocabularyList as insertVocabularyList,
+  addVocabularyWord as insertVocabularyWord,
+  createProgressBackup,
+  migrateProgressData,
+} from "./progress-data.mjs";
+import type {
+  LanguagePreferences,
+  VocabularyList,
+  VocabularyWord,
+} from "./progress-data.mjs";
 
 export const XP_PER_LESSON = 15;
 export const XP_PERFECT_BONUS = 5;
@@ -11,6 +32,14 @@ export const DEFAULT_DAILY_GOAL = 20;
 export const DEFAULT_COURSE = "es-en";
 /** Days of per-day history kept for the streak calendar and quests. */
 const DAY_HISTORY_LIMIT = 70;
+
+const progressWriteGuard = createProgressWriteGuard();
+// Persisting older lesson snapshots after newer ones would silently undo XP.
+// Keep all Zustand writes (including removes) in invocation order.
+const trackedProgressStorage = createSerializedProgressStorage(
+  AsyncStorage,
+  progressWriteGuard
+);
 
 export type ThemePreference = "system" | "light" | "dark";
 export type WordStat = { correct: number; wrong: number; lastSeen: number };
@@ -60,6 +89,18 @@ type ProgressState = {
   courses: Record<string, CourseProgress>;
   /** Per-day activity across courses, for the streak calendar and quests. */
   activeDays: Record<string, DayActivity>;
+  /** Same persisted state as lessons and SRS. No competing vocabulary store. */
+  vocabularyLists: VocabularyList[];
+  /** UI language is independent of selected learning course. */
+  languagePreferences: LanguagePreferences;
+
+  addVocabularyList: (list: VocabularyList) => void;
+  addVocabularyWord: (listId: string, word: VocabularyWord) => void;
+  /** Explicit, additive migration from Agent 02's independent legacy data. */
+  importWordPeckerVocabulary: (legacy: unknown) => void;
+  /** Agent 02/03 shared review entry point, explicitly scoped to a course. */
+  reviewLearningItem: (courseId: string, reviewKey: string, correct: boolean) => void;
+  setLanguagePreferences: (preferences: LanguagePreferences) => void;
 
   course: () => CourseProgress;
   completeLesson: (lessonId: string, perfect: boolean) => void;
@@ -98,7 +139,13 @@ function updateCourse(
 
 export const useProgress = create<ProgressState>()(
   persist(
-    (set, get) => ({
+    (unsafeSet, get) => {
+      // Protect all built-in learning actions while a migration owns the lock.
+      const set = ((...args: Parameters<typeof unsafeSet>) => {
+        progressWriteGuard.assertUnlocked();
+        return unsafeSet(...args);
+      }) as typeof unsafeSet;
+      return ({
       activeCourseId: DEFAULT_COURSE,
       streak: 0,
       lastActiveDay: null,
@@ -109,6 +156,8 @@ export const useProgress = create<ProgressState>()(
       themePreference: "system",
       courses: {},
       activeDays: {},
+      vocabularyLists: [],
+      languagePreferences: { uiLanguage: "en", nativeLanguage: "en" },
 
       course: () => (get().courses ?? {})[get().activeCourseId] ?? emptyCourseProgress(),
 
@@ -201,54 +250,60 @@ export const useProgress = create<ProgressState>()(
           })
         ),
 
+      addVocabularyList: (list) =>
+        set((state) => ({
+          vocabularyLists: insertVocabularyList(state.vocabularyLists ?? [], list),
+        })),
+
+      addVocabularyWord: (listId, word) =>
+        set((state) => ({
+          vocabularyLists: insertVocabularyWord(state.vocabularyLists ?? [], listId, word),
+        })),
+
+      // This action never deletes or rewrites red-poly:vocabulary-v1.
+      importWordPeckerVocabulary: (legacy) =>
+        set((state) => {
+          const merged = mergeWordPeckerVocabulary(state, legacy);
+          return { courses: merged.courses, vocabularyLists: merged.vocabularyLists };
+        }),
+
+      reviewLearningItem: (courseId, reviewKey, correct) =>
+        set((state) =>
+          updateCourse(state, courseId, (c) => {
+            const previous = c.wordStats[reviewKey] ?? { correct: 0, wrong: 0, lastSeen: 0 };
+            return {
+              ...c,
+              wordStats: {
+                ...c.wordStats,
+                [reviewKey]: {
+                  correct: previous.correct + (correct ? 1 : 0),
+                  wrong: previous.wrong + (correct ? 0 : 1),
+                  lastSeen: Date.now(),
+                },
+              },
+              srs: { ...c.srs, [reviewKey]: reviewWord(c.srs[reviewKey], correct ? 2 : 0) },
+            };
+          })
+        ),
+
+      setLanguagePreferences: (preferences) =>
+        set({ languagePreferences: preferences }),
+
       setActiveCourse: (courseId) => set({ activeCourseId: courseId }),
 
       setThemePreference: (preference) => set({ themePreference: preference }),
 
       finishOnboarding: (courseId, goal) =>
         set({ activeCourseId: courseId, dailyGoal: goal, onboardingDone: true }),
-    }),
+      });
+    },
     {
-      name: "progress-v2",
-      storage: createJSONStorage(() => AsyncStorage),
-      migrate: (persisted: unknown) => {
-        const old = persisted as Record<string, unknown>;
-        if (old.courses) {
-          return {
-            activeDays: {},
-            themePreference: "system" as ThemePreference,
-            ...old,
-          } as ProgressState;
-        }
-        // Migrate v1 flat progress → per-course.
-        const legacy = old as {
-          xp?: number;
-          completedLessons?: Record<string, true>;
-          mistakes?: MistakeRef[];
-          wordStats?: Record<string, WordStat>;
-          srs?: Record<string, SrsEntry>;
-        };
-        return {
-          activeCourseId: DEFAULT_COURSE,
-          streak: old.streak ?? 0,
-          lastActiveDay: old.lastActiveDay ?? null,
-          dailyGoal: old.dailyGoal ?? DEFAULT_DAILY_GOAL,
-          dailyXp: old.dailyXp ?? 0,
-          dailyXpDay: old.dailyXpDay ?? null,
-          onboardingDone: old.onboardingDone ?? false,
-          themePreference: (old.themePreference as ThemePreference) ?? "system",
-          activeDays: (old.activeDays as Record<string, DayActivity>) ?? {},
-          courses: {
-            [DEFAULT_COURSE]: {
-              xp: legacy.xp ?? 0,
-              completedLessons: legacy.completedLessons ?? {},
-              mistakes: legacy.mistakes ?? [],
-              wordStats: legacy.wordStats ?? {},
-              srs: legacy.srs ?? {},
-            },
-          },
-        };
-      },
+      name: PROGRESS_STORAGE_KEY,
+      version: PROGRESS_STORAGE_VERSION,
+      storage: createJSONStorage(() => trackedProgressStorage),
+      // Zustand's old unversioned payloads are v0. Keep progress-v2 unchanged.
+      migrate: (persisted: unknown, fromVersion: number) =>
+        migrateProgressData(persisted, fromVersion) as ProgressState,
     }
   )
 );
@@ -343,4 +398,63 @@ export function dueSrsWords(srs: Record<string, SrsEntry> = {}, now = Date.now()
   return Object.entries(srs ?? {})
     .filter(([, entry]) => isDue(entry, now))
     .map(([target]) => target);
+}
+
+/**
+ * Export the current persisted learning snapshot (no actions or secrets).
+ * The caller chooses where to save/share the returned JSON.
+ */
+export function exportProgressBackup(): string {
+  // Compatibility API: synchronous in-memory snapshot, not disk-verified.
+  progressWriteGuard.assertUnlocked();
+  return createProgressBackup(useProgress.getState());
+}
+
+/** Safe, disk-verified backup: waits for pending Zustand persistence writes. */
+export async function exportPersistedProgressBackup(): Promise<string> {
+  return exportGuardedBackup({
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+  });
+}
+
+/**
+ * Explicit, guarded restore; never called automatically.
+ * Drains pending writes and blocks normal learning actions until the saved
+ * data is verified and the in-memory Zustand state has been rehydrated.
+ */
+export async function restoreProgressBackup(serialized: string): Promise<void> {
+  await restoreGuardedBackup(serialized, {
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+    rehydrate: async () => { await useProgress.persist.rehydrate(); },
+  });
+}
+
+
+/**
+ * Safe entry point for an explicit, user-approved WordPecker migration.
+ *
+ * Guards standard learning actions while waiting for previously submitted
+ * Zustand writes, rejects mismatched disk / memory snapshots, verifies storage
+ * through the core migration adapter, and rehydrates the live store.
+ *
+ * Do not call while external code writes directly to AsyncStorage: its API
+ * does not provide a cross-process transaction or compare-and-swap.
+ */
+export async function importWordPeckerVocabularyFromDevice(): Promise<{
+  listsAdded: number;
+  wordsAdded: number;
+}> {
+  return importGuardedWordPecker({
+    storage: AsyncStorage,
+    guard: progressWriteGuard,
+    getState: () => useProgress.getState(),
+    isHydrated: () => useProgress.persist.hasHydrated(),
+    rehydrate: async () => { await useProgress.persist.rehydrate(); },
+  });
 }
