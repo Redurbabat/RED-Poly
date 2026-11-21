@@ -1,6 +1,6 @@
 # RED POLY – geordnete Projekt- und Build-Struktur
 
-Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Native-App abgestimmt. **Expo-Routen und oeffentliche Modulimporte bleiben erhalten.** Die Vokabel-Implementierung ist innerhalb ihres Features in Daten, Uebungen und Auswertung aufgeteilt. Die bisherigen Importdateien bleiben als kompatible Weiterleitungen bestehen, damit bestehende UI-Routen nicht brechen.
+Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Native-App abgestimmt. **Expo-Routen und oeffentliche Modulimporte bleiben erhalten.** Die Vokabel-Implementierung ist in Daten, Uebungen und Auswertung aufgeteilt. Gespraeche sind entsprechend in Domain, Daten und Spracherkennung aufgeteilt. Die bisherigen Importdateien bleiben als kompatible Weiterleitungen bestehen, damit bestehende UI-Routen nicht brechen.
 
 ## 1. Quellcode (GitHub: bleibt erhalten)
 
@@ -14,6 +14,14 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     │   │   └── backup.tsx           Sicherung und Wiederherstellung
     │   ├── features/                Fachbereiche (analog RED ION bereiche/)
     │   │   ├── conversation/        Gespraechs-Engine und Spracherkennung
+    │   │   │   ├── domain/        Offline-Engine, Sprachen, Niveaus, Tutor-Demo
+    │   │   │   │   └── engine.ts
+    │   │   │   ├── data/          Lokale Konversationsspeicherung
+    │   │   │   │   └── storage.ts
+    │   │   │   ├── speech/        Browser- und Systemdiktat nach Zustimmung
+    │   │   │   │   ├── web-speech.ts
+    │   │   │   │   └── native-speech.ts
+    │   │   │   └── *.ts           Kompatibilitaets-Exports fuer alte Pfade
     │   │   └── vocabulary/          Wortlisten und Uebungen
     │   │       ├── data/           Datenzugriff, Versionierung, Transfer
     │   │       │   ├── storage.ts
@@ -94,3 +102,13 @@ Das Script entfernt bei erneutem Staging alte Web-Artefakte aus den beiden gener
 - Navigation und Komponenten unter src/components/ zentral halten.
 - Signierte mobile Builds nur nach realem Signier- und Geraetetest ablegen; niemals private Signierschluessel in Git speichern.
 - Cloudflare-Worker-Hosting ist **keine** automatische Cross-Device-Synchronisierung.
+
+## 5. Sprachgespraeche als Module
+
+`src/features/conversation/domain/engine.ts` enthaelt weiterhin nur den Offline-Demotutor; es wurde **kein KI-Anbieter** und kein Kosten- oder API-Schluessel hinterlegt.
+`src/features/conversation/data/storage.ts` verwendet weiterhin den lokalen Key `red-poly-conversation-v1` und wartet auf ausstehende Schreibvorgaenge.
+`src/features/conversation/speech/` kapselt optionale Web- und native Spracherkennung. Mikrofonzugriff erfolgt nur nach ausdruecklicher Zustimmung.
+
+Alle vier ehemaligen Top-Level-Module (`engine.ts`, `storage.ts`, `web-speech.ts`, `native-speech.ts`) bleiben als `export *`-Weiterleitung erhalten. Expo-Screens, Tests und externe Module nutzen weiter die bisherigen Importpfade.
+
+`bun run test:conversation:architecture` prueft die Laufzeit-Kompatibilitaet, die unveraenderte Speichernorm und die getrennten Sprachadapter.
