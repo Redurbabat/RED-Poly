@@ -16,6 +16,7 @@ on:
       - "tests/conversation-engine.test.mjs"
       - "tests/conversation-web-speech.test.mjs"
       - "tests/conversation-native-speech.test.mjs"
+      - "tests/conversation-architecture.test.mjs"
       - ".github/workflows/conversation-checks.yml"
       - "tsconfig.conversation.json"
   workflow_dispatch:
@@ -39,7 +40,7 @@ jobs:
         with:
           node-version: "22"
       - name: Run offline conversation engine tests
-        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs
+        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs tests/conversation-architecture.test.mjs
       - uses: oven-sh/setup-bun@v2
       - name: Install project dependencies
         run: bun install --frozen-lockfile
