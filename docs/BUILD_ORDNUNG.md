@@ -47,6 +47,25 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     ├── wrangler.jsonc                Cloudflare-Konfiguration
     └── package.json                  Zentrale Befehle
 
+## Backup-Bereich (seit 22.11.2026)
+
+```text
+src/features/backup/
+├── domain/
+│   └── complete-device-backup.mjs  Reiner Archivparser, Schemapruefung und stabiler Export
+├── data/
+│   └── device-export.ts            AsyncStorage-/Lernstand-Leseadapter
+├── ui/
+│   └── complete-backup-export.tsx  Exportoberflaeche fuer iOS, Android und Web
+└── device-export.ts                Kompatible Weiterleitung
+```
+
+Die Datei `src/lib/complete-device-backup.mjs` ist eine kompatible Weiterleitung; die zugehoerige `.d.mts`-Typdeklaration bleibt unveraendert. Genauso verweist `src/components/complete-backup-export.tsx` weiter auf das bestehende React-Element. Der Route `src/app/backup.tsx` und den persistierten Lernstaenden wird dadurch nichts weggenommen.
+
+**Wichtig:** Ein vollstaendiges Geraetearchiv kann gelesen und exportiert, aber weiterhin **nicht automatisch zurueckgespielt** werden. Der getrennte Kursfortschritt-Restore unterliegt weiterhin seiner ausdruecklichen Bestaetigung und seinen eigenen Schutzpruefungen. Keine Cloud-Synchronisierung und keine Netzwerkuebertragung.
+
+Tests: `bun run test:backup:architecture` und `bun run test:integration`.
+
 ## 2. Generierte Ausgaben (build/ – automatisch, nicht in Git)
 
     build/

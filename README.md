@@ -13,6 +13,7 @@ RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Li
   - Die Implementierung liegt jetzt geordnet in `src/features/conversation/domain/`, `data/` und `speech/`. Bestehende App-Imports und lokale Gesprächsdaten bleiben erhalten.
 - **Gesamtarchiv:** Im Profil unter **Backup & restore** lassen sich Kursfortschritt, Wortlisten und Gesprächsverlauf in **einer JSON-Datei exportieren**. Es handelt sich ausdrücklich **nur um einen Export**; automatische Gesamtwiederherstellung und Cloud-Synchronisation fehlen noch. Das Archiv ist unverschlüsselt und muss privat aufbewahrt werden.
 - **Backup:** Über **Profil → Backup & restore** ist ein ausdrücklich gestarteter, geprüfter Export/Restore des Kursfortschritts verfügbar. Eigene Wortlisten lassen sich weiterhin getrennt in **Meine Vokabeln** sichern.
+  - Der vollständige Gerätearchiv-Export ist jetzt modular in `src/features/backup/domain/`, `data/` und `ui/` organisiert. Der Gesamtarchiv-Restore bleibt bewusst deaktiviert; bestehende Importpfade und lokale Daten bleiben erhalten.
 - **Fortschritt:** bestehender `progress-v2`-Store wird beibehalten. Der Core-Branch bietet eine **explizite** geprüfte Legacy-Vokabel-Importfunktion; automatische Migration ist nicht aktiviert.
 - **iOS-Navigation:** Native iPhone-Tabbar mit SF Symbols und systemeigenem iOS-26-Liquid-Glass, Android/Web behalten ihre bisherige Tabbar (Hardwareprüfung ausstehend).
 - **Design und QA:** gemeinsame RED-POLY-UI-Primitive und Entwicklungs-Testseiten; das bestehende Hauptdesign wird schrittweise umgestellt.

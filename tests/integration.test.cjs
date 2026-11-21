@@ -110,9 +110,9 @@ test("Cloudflare Preview configuration is declared without production data bindi
 
 test("one read-only archive exports all local stores without destructive restore", () => {
   const route = read("src/app/backup.tsx");
-  const ui = read("src/components/complete-backup-export.tsx");
-  const adapter = read("src/features/backup/device-export.ts");
-  const model = read("src/lib/complete-device-backup.mjs");
+  const ui = read("src/features/backup/ui/complete-backup-export.tsx");
+  const adapter = read("src/features/backup/data/device-export.ts");
+  const model = read("src/features/backup/domain/complete-device-backup.mjs");
   assert.match(route, /<CompleteBackupExport/);
   assert.match(adapter, /exportPersistedProgressBackup/);
   assert.match(adapter, /loadVocabulary/);
@@ -120,4 +120,18 @@ test("one read-only archive exports all local stores without destructive restore
   assert.match(ui, /Gesamtes Archiv erzeugen/);
   assert.match(ui, /Nur Export/);
   assert.match(model, /restoreSupported: false/);
+});
+
+test("backup architecture separates the pure archive domain, native storage adapter and UI without breaking imports", () => {
+  const legacyModel = read("src/lib/complete-device-backup.mjs");
+  const legacyAdapter = read("src/features/backup/device-export.ts");
+  const legacyUI = read("src/components/complete-backup-export.tsx");
+  const pkg = readJson("package.json");
+  assert.match(legacyModel, /export \* from "\.\.\/features\/backup\/domain\/complete-device-backup\.mjs"/);
+  assert.match(legacyAdapter, /export \* from "\.\/data\/device-export"/);
+  assert.match(legacyUI, /CompleteBackupExport.*from "@\/features\/backup\/ui\/complete-backup-export"/);
+  assert.match(read("src/features/backup/domain/complete-device-backup.mjs"), /restoreSupported: false/);
+  assert.match(read("src/features/backup/data/device-export.ts"), /exportPersistedProgressBackup/);
+  assert.match(read("src/features/backup/ui/complete-backup-export.tsx"), /Nur Export/);
+  assert.ok(pkg.scripts["test:integration"].includes("tests/backup-architecture.test.mjs"));
 });
