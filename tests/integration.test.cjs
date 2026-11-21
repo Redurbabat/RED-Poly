@@ -84,7 +84,7 @@ test("Cloudflare Worker can build its own static assets without separate dashboa
   const cf = readJson("wrangler.jsonc");
   assert.equal(pkg.scripts.build, "expo export --platform web");
   assert.equal(cf.build.command, "bun run build:web");
-  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4 preview");
+  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4.135.0 preview");
   assert.equal(cf.assets.directory, "./dist");
   assert.equal(cf.assets.not_found_handling, "single-page-application");
 });
@@ -96,4 +96,14 @@ test("Wrangler CI checks a clean-build path rather than relying on pre-existing 
   const exported = workflow.indexOf("test -s dist/index.html");
   assert.ok(source >= 0 && dryRun > source && exported > dryRun);
   assert.doesNotMatch(workflow, /run:\s*bun run build:web/);
+});
+
+test("Cloudflare Preview configuration is declared without production data bindings", () => {
+  const config = readJson("wrangler.jsonc");
+  const pkg = readJson("package.json");
+  assert.equal(config.workers_dev, true);
+  assert.equal(config.preview_urls, true);
+  assert.deepEqual(config.previews, {});
+  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4.135.0 preview");
+  assert.equal(config.assets.binding, "ASSETS");
 });
