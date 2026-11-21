@@ -97,7 +97,7 @@ test("existing persisted progress key must not change", () => {
 });
 
 test("SRS review logic preserves boundaries and due scheduling", () => {
-  const source = read("src/lib/srs.ts");
+  const source = read("src/features/learning/srs/srs.ts");
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;

@@ -13,6 +13,9 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     │   │   ├── vocabulary.tsx       Vokabellisten
     │   │   └── backup.tsx           Sicherung und Wiederherstellung
     │   ├── features/                Fachbereiche (analog RED ION bereiche/)
+    │   │   ├── learning/             Lektionen, Kurskatalog und SRS
+    │   │   │   ├── catalog/content.ts
+    │   │   │   └── srs/srs.ts
     │   │   ├── progress/             Kursfortschritt und Migration
     │   │   │   ├── domain/
     │   │   │   ├── data/
@@ -86,6 +89,20 @@ src/features/progress/
 Die bisherige `src/lib/progress-*.mjs`-API wird weiterhin unveraendert exportiert. Die vier `src/lib/progress-*.d.mts`-Typvertraege und der bestehende `src/lib/store.ts` bleiben erhalten; keine Migration, kein neuer Persistenzschluessel und keine automatische Verbindung mit einer Cloud. Die Uebungs-SRS-Funktion `src/lib/srs.ts` bleibt als gemeinsame, plattformuebergreifende Logik an ihrem bisherigen Ort. Der bestehende Import von WordPecker-Daten erhaelt die Schreibbarrieren.
 
 `bun run test:progress:architecture` prueft neben den bestehenden Daten-Regressionen die Runtime-Kompatibilitaet, Speicherkennungen und Schutzmechanismen.
+
+## Lerninhalte und Wiederholungen (22.11.2026)
+
+```text
+src/features/learning/
+├── catalog/
+│   └── content.ts              Kursindex, Pakete und Lektionen-Cache
+└── srs/
+    └── srs.ts                  Lokaler SRS-Algorithmus
+```
+
+Die ursprünglichen API-Pfade `src/lib/content.ts` und `src/lib/srs.ts` bleiben kompatible Weiterleitungen; bestehende Bildschirme und die generierten Kursdateien unter `src/content/packs/` bleiben unverändert. `src/lib/types.ts` bleibt der gemeinsame Typvertrag und wird weiterhin vom Kursgenerator verwendet. **Alle acht vorhandenen Kurse** werden in der neuen Regression gegen Lektionenzahl, IDs, globalen Index und Cache-Identität geprüft.
+
+`bun run test:learning:architecture` prüft die unveränderten SRS-Runtime-Exports, Fälligkeitsberechnung und alle Kursindizes. Keine XP- oder SRS-Daten werden migriert.
 
 ## 2. Generierte Ausgaben (build/ – automatisch, nicht in Git)
 

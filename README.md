@@ -7,6 +7,7 @@ RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Li
 ## Funktionen
 
 - **Lernpfad:** acht gebündelte Sprachkurse mit Übungen, XP, Streaks und Wiederholungen.
+  - Lektionenkatalog und SRS-Lernalgorithmus liegen jetzt in `src/features/learning/catalog/` und `srs/`. Die bisherigen Importe unter `src/lib/` bleiben bestehen.
 - **Meine Vokabeln:** Wortlisten, Offline-Karteikarten, Wortbank-/Schreibübungen, Mehrfachauswahl, lokale JSON-Sicherung. Aktuell separate Vokabelspeicherung `red-poly:vocabulary-v1`.
   - Der Vokabel-Code ist jetzt modular aufgeteilt in `src/features/vocabulary/data/`, `exercises/` und `analytics/`. Bestehende Importe bleiben über Weiterleitungsdateien stabil; der gespeicherte Schlüssel und die Lernstände werden nicht verändert.
 - **Sprachgespräche:** offline gekennzeichneter Gesprächs-Demomodus. Optionale Web-/native Spracheingabe nur mit Zustimmung, kein Live-KI-Provider.

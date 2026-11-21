@@ -1,0 +1,111 @@
+"use strict";
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const Module = require("node:module");
+const ts = require("typescript");
+
+const root = path.resolve(__dirname, "..");
+const loaded = new Map();
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+
+/** Load real on-disk TypeScript and catalog packs without bundling Expo/RN. */
+function loadTypescript(relativeOrAbsolute) {
+  const filename = path.resolve(root, relativeOrAbsolute);
+  if (loaded.has(filename)) return loaded.get(filename).exports;
+  const compiled = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+    fileName: filename,
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      esModuleInterop: true,
+      resolveJsonModule: true,
+    },
+    reportDiagnostics: true,
+  });
+  const errors = (compiled.diagnostics ?? []).filter((entry) => entry.category === ts.DiagnosticCategory.Error);
+  assert.equal(errors.length, 0, "transpile " + filename);
+  const nodeModule = new Module(filename, module);
+  nodeModule.filename = filename;
+  nodeModule.paths = Module._nodeModulePaths(path.dirname(filename));
+  loaded.set(filename, nodeModule);
+  nodeModule.require = (request) => {
+    if (!request.startsWith(".")) return Module.prototype.require.call(nodeModule, request);
+    const local = path.resolve(path.dirname(filename), request);
+    const options = [local, local + ".ts", local + ".json", path.join(local, "index.ts")];
+    const found = options.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    if (!found) throw new Error("Cannot resolve on-disk lesson dependency: " + request);
+    if (found.endsWith(".json")) return JSON.parse(fs.readFileSync(found, "utf8"));
+    if (found.endsWith(".ts")) return loadTypescript(found);
+    throw new Error("Unsupported lesson dependency: " + found);
+  };
+  nodeModule._compile(compiled.outputText, filename);
+  return nodeModule.exports;
+}
+
+test("shared SRS module preserves every public runtime export and scheduling", () => {
+  const api = loadTypescript("src/lib/srs.ts");
+  const impl = loadTypescript("src/features/learning/srs/srs.ts");
+  for (const name of ["DEFAULT_EASE", "MIN_EASE", "reviewWord", "isDue", "dueInDays"]) {
+    assert.equal(api[name], impl[name], name);
+  }
+  const start = Date.now();
+  const first = api.reviewWord(undefined, 2);
+  assert.equal(first.interval, 1);
+  assert.equal(first.streak, 1);
+  assert.equal(api.isDue(first, start), false);
+  assert.equal(api.dueInDays(first, first.dueAt), 0);
+  const retry = api.reviewWord(first, 0);
+  assert.equal(retry.interval, 0);
+  assert.equal(retry.streak, 0);
+  assert.ok(retry.ease >= api.MIN_EASE);
+  assert.ok(api.isDue(undefined));
+});
+
+test("legacy course content entry shares the exact catalogue and selectors", () => {
+  const api = loadTypescript("src/lib/content.ts");
+  const impl = loadTypescript("src/features/learning/catalog/content.ts");
+  for (const name of ["catalog", "orderedCourses", "getPack", "useCourseContent"]) {
+    assert.equal(api[name], impl[name], name);
+  }
+  assert.equal(api.catalog.courses.length, 8);
+  assert.deepEqual(new Set(api.orderedCourses.map((item) => item.id)),
+    new Set(api.catalog.courses.map((item) => item.id)));
+  assert.deepEqual(api.orderedCourses.map((item) => item.id).sort(),
+    api.catalog.courses.map((item) => item.id).sort());
+});
+
+test("all eight compiled courses preserve lesson indices, unit lookup and cached identity", () => {
+  const { catalog, getPack, useCourseContent } = loadTypescript("src/lib/content.ts");
+  for (const course of catalog.courses) {
+    const pack = getPack(course.id);
+    const content = useCourseContent(course.id);
+    const again = useCourseContent(course.id);
+    assert.equal(pack.id, course.id);
+    assert.equal(content.pack, pack);
+    assert.equal(content.allLessons, again.allLessons);
+    assert.equal(content.allLessons.length, course.lessonCount);
+    assert.equal(new Set(content.allLessons.map(({ lesson }) => lesson.id)).size,
+      content.allLessons.length, course.id + " duplicate lessons");
+    for (const { lesson, unit, globalIndex } of content.allLessons) {
+      const ref = content.getLesson(lesson.id);
+      assert.equal(ref.lesson, lesson);
+      assert.equal(ref.unit, unit);
+      assert.equal(ref.globalIndex, globalIndex);
+      assert.equal(content.getUnit(unit.id), unit);
+    }
+  }
+  assert.throws(() => getPack("__missing__"), /Unknown course/);
+});
+
+test("Expo's existing public import paths and generated course registry stay stable", () => {
+  assert.match(read("src/lib/srs.ts"), /export \* from "\.\.\/features\/learning\/srs\/srs\.ts"/);
+  assert.match(read("src/lib/content.ts"), /export \* from "\.\.\/features\/learning\/catalog\/content\.ts"/);
+  assert.match(read("src/content/packs/index.ts"), /Generated by scripts\/compile-content/);
+  assert.match(read("src/content/packs/index.ts"), /from "\.\.\/\.\.\/lib\/types"/);
+  assert.match(read("src/lib/store.ts"), /from "\.\/srs"/);
+  assert.match(read("src/lib/audio.ts"), /from "\.\/content"/);
+  assert.match(read("src/app\/(tabs)\/index.tsx".replace("/", "/")), /@\/lib\/content/);
+  assert.match(read("src/lib/types.ts"), /export type Pack/);
+});
