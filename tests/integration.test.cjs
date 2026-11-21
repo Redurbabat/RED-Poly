@@ -78,3 +78,13 @@ test("Cloudflare publishing has one owner: Workers Builds, GitHub Actions only v
   assert.equal(config.main, "./worker/index.ts");
   assert.equal(config.assets.binding, "ASSETS");
 });
+
+test("Cloudflare Worker can build its own static assets without separate dashboard build configuration", () => {
+  const pkg = readJson("package.json");
+  const cf = readJson("wrangler.jsonc");
+  assert.equal(pkg.scripts.build, "expo export --platform web");
+  assert.equal(cf.build.command, "bun run build:web");
+  assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4 preview");
+  assert.equal(cf.assets.directory, "./dist");
+  assert.equal(cf.assets.not_found_handling, "single-page-application");
+});
