@@ -22,6 +22,12 @@ function staticFile(requestPath) {
   for (const target of [candidate, candidate + ".html", path.join(candidate, "index.html")]) {
     if (fs.existsSync(target) && fs.statSync(target).isFile()) return target;
   }
+  // Expo web.output = "single": Cloudflare Workers serves index.html for
+  // client-side routes. Mirror that behaviour in this local production test.
+  // Do not mask missing assets or API calls with the SPA fallback.
+  if (normalized !== "/api" && !normalized.startsWith("/api/") && !path.posix.extname(normalized)) {
+    return path.join(exportRoot, "index.html");
+  }
   return null;
 }
 
