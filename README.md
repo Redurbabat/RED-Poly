@@ -1,54 +1,68 @@
-# (Open Source) Lingo Lessons
+# RED POLY
 
-Free, open-source Duolingo-style language learning for English speakers, by [Open Apps Studio](https://github.com/Open-Apps-Studio). No ads, no paywalls, no accounts. **This Expo React Native app is the product.**
+RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Lingo-Lessons-Expo-Anwendung. Dieser Integrationsstand vereint Lingo-Lektionen, eine eigene WordPecker-inspirierte Vokabelverwaltung und einen Mural-inspirierten Konversations-**Demomodus** in **einer** App.
 
-[Download on the App Store](https://apps.apple.com/app/id6781818623)
+> Entwicklungsstatus: **Integrations-PR / kein Release.** Echte KI-Gespräche, Nutzerkonten, Google-Anmeldung und geräteübergreifende Cloud-Synchronisation sind **noch nicht vorhanden**. Es wurde weder eine signierte IPA noch eine APK veröffentlicht.
 
-The Next.js app in the repo root is a cloned reference project — useful for UI inspiration and optional content preview/admin, but not the learner experience we're shipping.
+## Funktionen
 
-## What it does
+- **Lernpfad:** acht gebündelte Sprachkurse mit Übungen, XP, Streaks und Wiederholungen.
+- **Meine Vokabeln:** Wortlisten, Offline-Karteikarten, Wortbank-/Schreibübungen, Mehrfachauswahl, lokale JSON-Sicherung. Aktuell separate Vokabelspeicherung `red-poly:vocabulary-v1`.
+- **Sprachgespräche:** offline gekennzeichneter Gesprächs-Demomodus. Optionale Web-/native Spracheingabe nur mit Zustimmung, kein Live-KI-Provider.
+- **Fortschritt:** bestehender `progress-v2`-Store wird beibehalten. Der Core-Branch bietet eine **explizite** geprüfte Legacy-Vokabel-Importfunktion; automatische Migration ist nicht aktiviert.
+- **Design und QA:** gemeinsame RED-POLY-UI-Primitive und Entwicklungs-Testseiten; das bestehende Hauptdesign wird schrittweise umgestellt.
+- **Web:** Cloudflare Worker mit statischen Expo-Assets und `GET /api/health`. Das Hosting ist kein Daten-/Sync-Backend.
 
-- **Learn path** — sections, units, and lesson nodes (locked/unlocked progression)
-- **Lesson engine** — exercises with feedback, XP, completion flow (no hearts or energy gates — everything is free)
-- **Practice tab** — mistake review and spaced repetition (SRS)
-- **Profile** — streak, stats, per-course progress
-- **8 courses** — Spanish, French, German, Italian, Portuguese, Japanese, Korean, Chinese (all for English speakers)
+## Entwicklerstart
 
-## How it's built
-
-- **Expo SDK 56** + React Native, file-based routing in `app/`
-- **Local-first** — progress lives on-device (zustand + AsyncStorage), per course. No accounts or backend in v1.
-- **Bundled content packs** — compiled JSON + pre-generated TTS audio, not fetched at runtime
-
-Content is authored in `../content/`, compiled by `../scripts/compile-content.ts`, and bundled into `src/content/packs/`. See `../AGENTS.md` for the full pipeline.
-
-## Get started
-
-From the repo root:
+Die Expo-App liegt **im Repository-Root** (nicht in `mobile/`).
 
 ```bash
-cd mobile && bun install && bunx expo start
+bun install --frozen-lockfile
+bunx expo start
 ```
 
-Add `--web` to open in a browser. Typecheck:
+Im Browser: `bunx expo start --web`.
+
+Typen und Regressionen:
 
 ```bash
-cd mobile && bunx tsc --noEmit
+bunx tsc --noEmit
+bun run test:integration
 ```
 
-## Project layout
+Die Tests enthalten Struktur- und Unit-Prüfungen; reale iPhone-/Android-, Sprach-/Browser- und Datenmigrationsprüfungen sind separat erforderlich.
 
-```
-mobile/
-  app/              # screens (Expo Router)
-  src/
-    components/     # UI + exercise types
-    content/        # bundled packs (generated — don't edit by hand)
-    lib/            # stores, types, audio helpers
-  assets/audio/     # pre-generated TTS MP3s (generated — don't edit by hand)
+## Web-App auf Cloudflare Workers
+
+```bash
+bun run build:web
+bunx wrangler@4 login
+bunx wrangler@4 deploy
 ```
 
-## Docs
+- Worker-Konfiguration: `wrangler.jsonc`.
+- Backend: `worker/index.ts` (nur Health-Check und Web-Assets).
+- GitHub Actions: `.github/workflows/cloudflare-workers.yml` (PR: Build und Dry-Run; Push auf `main`: Deployment).
+- **Erforderliche GitHub-Actions-Secrets für automatisches Deployment:** `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
+- Eine erfolgreiche Veröffentlichung benötigt Zugriff auf das eigene Cloudflare-Konto. Noch keine Cloud-Synchronisation.
 
-- `../AGENTS.md` — repo overview, content pipeline, commands
-- `../docs/plan.md` — roadmap (M0–M4), legal boundary on Duolingo content
+## Native Builds / App-Identität
+
+iOS-Bundle-ID und Android-Package: `com.redurbabat.redpoly`; Expo-Scheme: `redpoly`. Die früheren Lingo-/Expo-/App-Store-Kennungen sind in `app.json` und `eas.json` entfernt.
+
+**Achtung:** Änderungen der nativen Bundle-ID erzeugen eine andere Installation. Alte lokale Daten sind dadurch nicht automatisch zugänglich. Vor dem Umstieg Sicherung, Backup-/Restore-Test und Updatepfad überprüfen. Für die native Spracherkennung ist ein neuer Dev-/Native-Build nötig; Expo Go enthält das Modul nicht.
+
+## Dokumentation
+
+- `ARCHITEKTUR.md`, `ENTSCHEIDUNGEN.md`, `UMSETZUNGSPLAN.md`
+- `docs/CORE_DATA_API.md` (Daten, Migration und Backup)
+- `docs/agent-02-wordpecker.md` (Vokabeln)
+- `docs/MURAL_CONVERSATION_INTEGRATION.md` (Konversation, Einwilligung und Kosten)
+- `docs/RED-POLY-DESIGN-QA.md`, `docs/RED-POLY-IOS-QA.md`
+
+## Herkunft und Veröffentlichung
+
+Die Haupt-App wurde aus Lingo Lessons übernommen, mit WordPecker- und Mural-Quellen im Verzeichnis `integrations/`. Alle Quellcode-, Inhalts-, Audio- und Bildlizenzen müssen **vor einer öffentlichen Distribution** nachweisbar geprüft werden. Die vorhandene Root-`LICENSE` nennt nur Expo/650 Industries und ist **kein** vollständiger Lizenznachweis für Lerninhalte und Grafiken.
+
+Dieses Repository ist eine Entwicklungsbasis. Kein ungeprüfter Store-Release.

@@ -1,0 +1,40 @@
+name: RED POLY Cloudflare Workers
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-and-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Export Expo web SPA
+        run: bun run build:web
+
+      - name: Verify web export
+        run: test -s dist/index.html
+
+      - name: Verify Worker bundle without deploying
+        run: bunx wrangler@4 deploy --dry-run --outdir .wrangler-preview
+
+      - name: Deploy to Cloudflare Workers
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: bunx wrangler@4 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

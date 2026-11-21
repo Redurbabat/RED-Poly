@@ -20,6 +20,7 @@
         "expo-linking": "~56.0.14",
         "expo-router": "~56.2.10",
         "expo-speech": "~56.0.3",
+        "expo-speech-recognition": "56.0.4",
         "expo-splash-screen": "~56.0.10",
         "expo-status-bar": "~56.0.4",
         "expo-symbols": "~56.0.6",
@@ -256,8 +257,6 @@
     "@expo/ui": ["@expo/ui@56.0.17", "", { "dependencies": { "sf-symbols-typescript": "^2.1.0", "vaul": "^1.1.2" }, "peerDependencies": { "@babel/core": "*", "expo": "*", "react": "*", "react-dom": "*", "react-native": "*", "react-native-reanimated": "*", "react-native-worklets": "*" }, "optionalPeers": ["@babel/core", "react-dom", "react-native-reanimated", "react-native-worklets"] }, "sha512-Jos9oGzurMDngrSWJesX3LSykPRvkUdANxtq2sPKBc6bAjadtZJCkthAYMaE3P9L5xrzbNRFo+2O76cRP0iYPw=="],
 
     "@expo/vector-icons": ["@expo/vector-icons@15.1.1", "", { "peerDependencies": { "expo-font": ">=14.0.4", "react": "*", "react-native": "*" } }, "sha512-Iu2VkcoI5vygbtYngm7jb4ifxElNVXQYdDrYkT7UCEIiKLeWnQY0wf2ZhHZ+Wro6Sc5TaumpKUOqDRpLi5rkvw=="],
-
-    "@expo/ws-tunnel": ["@expo/ws-tunnel@2.0.0", "", { "peerDependencies": { "ws": "^8.0.0" } }, "sha512-j+JfTRdCk820J9dU0sA2SqshQIKFOMo7ED84w9MJFcebfbNQgsLztEY/SABDkGnjatrW4xGqnUhVRxSBVyCkXw=="],
 
     "@expo/xcpretty": ["@expo/xcpretty@4.4.4", "", { "dependencies": { "@babel/code-frame": "^7.20.0", "chalk": "^4.1.0", "js-yaml": "^4.1.0" }, "bin": { "excpretty": "build/cli.js" } }, "sha512-4aQzz9vgxcNXFfo/iyNgDDYfsU5XGKKxWxZopw0cVotHiW+U8IJbIxMaxsINs6bHhtkG3StKNPcOrn3eBuxKPw=="],
 
@@ -594,6 +593,8 @@
     "expo-server": ["expo-server@56.0.5", "", {}, "sha512-SmM2p2g3Jrktpiazcst+OxhjSzOHXKAY4BPURHYHXvApzzoybMmrNF4IEZ8DKZ145BhSe4ydAmlEFCRTsdtgUQ=="],
 
     "expo-speech": ["expo-speech@56.0.3", "", { "peerDependencies": { "expo": "*" } }, "sha512-NkO7RX+BgJCALrjL/6C9AsyenkmJD9EBDIKAQmSN6BLrcXxwZnyQ9TSo/ZTSDSY9Y28aStXHfEBQogt2qUrP9w=="],
+
+    "expo-speech-recognition": ["expo-speech-recognition@56.0.4", "", { "peerDependencies": { "expo": "*", "react": "*", "react-native": "*" } }, "sha512-6Sh6aeKSG4W81TYfHUL8sgOxO++YrUi5Zhpmu5tiWurm6NP5hFL1SHd6+GbtV7Fyo4Cc35AofR9QxiSROZMJcQ=="],
 
     "expo-splash-screen": ["expo-splash-screen@56.0.10", "", { "dependencies": { "@expo/config-plugins": "~56.0.8", "@expo/image-utils": "^0.10.1", "xml2js": "0.6.0" }, "peerDependencies": { "expo": "*" } }, "sha512-vDIlo8hzt9HlCZQ0kSY66v83D1WEXOJbVMeyPDfXDu9tbDdPMNUyDpi4WGJXikAjxnAKfbt5Mv5NnEbxINy+VA=="],
 
@@ -1135,13 +1136,13 @@
 
     "@babel/plugin-transform-runtime/semver": ["semver@6.3.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA=="],
 
+    "@expo/cli/@expo/ws-tunnel": ["@expo/ws-tunnel@2.0.0", "", { "peerDependencies": { "ws": "^8.0.0" } }, "sha512-j+JfTRdCk820J9dU0sA2SqshQIKFOMo7ED84w9MJFcebfbNQgsLztEY/SABDkGnjatrW4xGqnUhVRxSBVyCkXw=="],
+
     "@expo/cli/ws": ["ws@8.21.0", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g=="],
 
     "@expo/devcert/debug": ["debug@3.2.7", "", { "dependencies": { "ms": "^2.1.1" } }, "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ=="],
 
     "@expo/plist/xmlbuilder": ["xmlbuilder@15.1.1", "", {}, "sha512-yMqGBqtXyeN1e3TGYvgNgDVZ3j84W4cwkOXQswghol6APgZWaff9lnbvN7MHYJOiXsvGPXtjTYJEiC9J2wv9Eg=="],
-
-    "@expo/ws-tunnel/ws": ["ws@8.21.0", "", { "peerDependencies": { "bufferutil": "^4.0.1", "utf-8-validate": ">=5.0.2" }, "optionalPeers": ["bufferutil", "utf-8-validate"] }, "sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g=="],
 
     "@react-native/babel-preset/@react-native/babel-plugin-codegen": ["@react-native/babel-plugin-codegen@0.86.0", "", { "dependencies": { "@babel/traverse": "^7.29.0", "@react-native/codegen": "0.86.0" } }, "sha512-qdsABWNW7uTll90l4Vh03gjeyu3WVDi2CyiiyvYGMRDcoYbjbQi6df3BMAm9lQI2yslZ1T14LlDDAsgTwNxplA=="],
 

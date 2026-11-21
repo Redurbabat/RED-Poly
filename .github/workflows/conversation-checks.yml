@@ -1,0 +1,131 @@
+name: RED POLY Conversation Checks
+
+on:
+  pull_request:
+    paths:
+      - "src/features/conversation/**"
+      - "src/app/conversation.tsx"
+      - "app.json"
+      - "eas.json"
+      - "tests/conversation-app-identity.test.mjs"
+      - "tests/conversation-native-config.test.mjs"
+      - "tests/conversation-ios-prebuild.test.mjs"
+      - "package.json"
+      - "bun.lock"
+      - "src/app/(tabs)/practice.tsx"
+      - "tests/conversation-engine.test.mjs"
+      - "tests/conversation-web-speech.test.mjs"
+      - "tests/conversation-native-speech.test.mjs"
+      - ".github/workflows/conversation-checks.yml"
+      - "tsconfig.conversation.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run offline conversation engine tests
+        run: node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs
+      - uses: oven-sh/setup-bun@v2
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Check TypeScript
+        run: bunx tsc --noEmit --project tsconfig.conversation.json
+      - name: Bundle iOS JavaScript without signing
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: |
+          bunx expo export --platform ios --output-dir /tmp/red-poly-ios-export
+          test -n "$(find /tmp/red-poly-ios-export -type f \( -name '*.js' -o -name '*.hbc' \) -print -quit)"
+      - name: Validate Expo native plugin configuration
+        run: bunx expo config --type prebuild --json > /dev/null
+      - name: Validate evaluated iOS and Android permission manifests
+        run: |
+          bunx expo config --type introspect --json > /tmp/red-poly-introspect.json
+          node tests/conversation-native-config.test.mjs /tmp/red-poly-introspect.json
+      - name: Generate unsigned iOS project and check native identity
+        env:
+          CI: "1"
+        run: |
+          bunx expo prebuild --platform ios --no-install --clean
+          node tests/conversation-ios-prebuild.test.mjs
+
+  ios-simulator:
+    name: Compile unsigned iOS Simulator app
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+      - name: Check Xcode environment
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Generate iOS project without signing
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: bunx expo prebuild --platform ios --no-install --clean
+      - name: Install CocoaPods dependencies
+        env:
+          LANG: en_US.UTF-8
+          LC_ALL: en_US.UTF-8
+        run: |
+          cd ios
+          pod install
+      - name: Compile iOS Simulator app without Apple credentials
+        env:
+          CI: "1"
+        run: |
+          xcodebuild \
+            -workspace ios/REDPOLY.xcworkspace \
+            -scheme REDPOLY \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/red-poly-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build > "$RUNNER_TEMP/red-poly-xcodebuild.log" 2>&1 || { tail -n 160 "$RUNNER_TEMP/red-poly-xcodebuild.log"; exit 1; }
+          APP="$RUNNER_TEMP/red-poly-derived/Build/Products/Debug-iphonesimulator/REDPOLY.app"
+          test -d "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "com.redurbabat.redpoly"
+          tar -czf "$RUNNER_TEMP/red-poly-ios-simulator.tar.gz" -C "$(dirname "$APP")" REDPOLY.app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: red-poly-unsigned-ios-simulator
+          path: ${{ runner.temp }}/red-poly-ios-simulator.tar.gz
+          retention-days: 3
+          if-no-files-found: error
+      - name: Install and launch app in iOS Simulator
+        timeout-minutes: 15
+        env:
+          CI: "1"
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/red-poly-derived/Build/Products/Debug-iphonesimulator/REDPOLY.app"
+          # Select an available iPhone runtime instead of hardcoding a device model.
+          UDID="$(xcrun simctl list devices available -j | node -e 'let s="";process.stdin.on("data",c=>s+=c);process.stdin.on("end",()=>{const d=Object.values(JSON.parse(s).devices).flat().find(v=>/^iPhone/.test(v.name)&&v.isAvailable!==false);if(!d){console.error("No available iPhone Simulator");process.exit(1)}process.stdout.write(d.udid)})')"
+          echo "Selected iOS Simulator UDID: $UDID"
+          xcrun simctl boot "$UDID" || { xcrun simctl list devices; exit 1; }
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl get_app_container "$UDID" com.redurbabat.redpoly app
+          xcrun simctl launch "$UDID" com.redurbabat.redpoly
+          echo "Native app launch command succeeded (Debug build; Metro UI remains unverified)"

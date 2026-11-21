@@ -64,6 +64,34 @@ export default function PracticeScreen() {
 
         <View style={styles.card}>
           <View style={styles.cardHeader}>
+            <Ionicons name="chatbubbles-outline" size={24} color={colors.sky} />
+            <Text style={styles.cardTitle} maxFontSizeMultiplier={1.3}>
+              Language conversations (demo)
+            </Text>
+          </View>
+          <Text style={styles.cardSubtitle} maxFontSizeMultiplier={1.3}>
+            Practice with an offline example tutor. Live AI is not connected yet.
+          </Text>
+          <DuoButton
+            label="Open conversations"
+            variant="primary"
+            onPress={() => router.push("/conversation")}
+          />
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="albums-outline" size={24} color={colors.indigo} />
+            <Text style={styles.cardTitle}>My vocabulary</Text>
+          </View>
+          <Text style={styles.cardSubtitle}>
+            Create personal word lists and review flashcards offline.
+          </Text>
+          <DuoButton label="Open vocabulary" variant="primary" onPress={() => router.push("/vocabulary")} />
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
             <MaterialCommunityIcons name="brain" size={24} color={colors.indigo} />
             <Text style={styles.cardTitle} maxFontSizeMultiplier={1.3}>
               Spaced review
