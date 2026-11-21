@@ -14,5 +14,7 @@
   },
   "build": {
     "command": "bun run build:web"
-  }
+  },
+  "preview_urls": true,
+  "previews": {}
 }
