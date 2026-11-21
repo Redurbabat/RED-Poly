@@ -15,6 +15,33 @@ RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Li
 - **Design und QA:** gemeinsame RED-POLY-UI-Primitive und Entwicklungs-Testseiten; das bestehende Hauptdesign wird schrittweise umgestellt.
 - **Web:** Cloudflare Worker mit statischen Expo-Assets und `GET /api/health`. Das Hosting ist kein Daten-/Sync-Backend.
 
+
+## Saubere Projekt- und Build-Ordnung
+
+RED POLY verwendet jetzt eine strukturierte Ausgabe unter `build/`, aehnlich wie RED ION, aber ohne dessen Electron-/MCP-Binaerdateien zu kopieren. **Der bestehende Expo-Quellcode bleibt erhalten.**
+
+```text
+build/
+├── visual-web-emission/       Expo-Webdateien
+├── visual-web-merged/         Cloudflare Worker + Web-Assets
+│   ├── assets/
+│   ├── worker/
+│   └── wrangler.jsonc
+├── cloudflare/                Preview und Deployment-Nachweise
+├── mobile/                    iOS-/Android-Ausgaben (reserviert)
+├── desktop/                   Windows/macOS (reserviert)
+├── qa/                        Testberichte
+└── metadata/build-layout.json
+```
+
+```bash
+bun run build:structure
+bun run build:web:organized
+bun run test:build-structure
+```
+
+`build/` ist gitignored. Die Web-Dateien entstehen erst nach dem Expo-Export, und die reservierten Plattformordner bedeuten **nicht**, dass eine IPA, APK oder EXE erstellt wurde. Das normale Cloudflare-Deployment bleibt bei `wrangler.jsonc`. Einzelheiten unter [docs/BUILD_ORDNUNG.md](docs/BUILD_ORDNUNG.md).
+
 ## Entwicklerstart
 
 Die Expo-App liegt **im Repository-Root** (nicht in `mobile/`).
