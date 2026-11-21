@@ -2,7 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { LanguageCode, Level, Message, Topic } from "./engine";
 
 /** Separate from the existing progress-v2 store: no migrations or XP side effects. */
-const KEY = "red-poly-conversation-v1";
+export const CONVERSATION_STORAGE_KEY = "red-poly-conversation-v1";
+const KEY = CONVERSATION_STORAGE_KEY;
 // Serialize writes so a slower earlier save cannot overwrite a newer session.
 let writeQueue: Promise<void> = Promise.resolve();
 export type SavedConversation = { language: LanguageCode; level: Level; topic: Topic; messages: Message[] };

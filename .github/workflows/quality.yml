@@ -39,6 +39,8 @@ jobs:
         run: node scripts/release-identity-guard.cjs --audit
       - name: Unit and structure tests
         run: node --test tests/*.test.cjs
+      - name: Full device archive validation tests
+        run: node --test tests/complete-device-backup.test.mjs
       - name: Expo web bundle smoke test
         env:
           EXPO_NO_TELEMETRY: "1"

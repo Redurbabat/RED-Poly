@@ -107,3 +107,17 @@ test("Cloudflare Preview configuration is declared without production data bindi
   assert.equal(pkg.scripts["cloudflare:preview"], "bun run build:web && bunx wrangler@4.135.0 preview");
   assert.equal(config.assets.binding, "ASSETS");
 });
+
+test("one read-only archive exports all local stores without destructive restore", () => {
+  const route = read("src/app/backup.tsx");
+  const ui = read("src/components/complete-backup-export.tsx");
+  const adapter = read("src/features/backup/device-export.ts");
+  const model = read("src/lib/complete-device-backup.mjs");
+  assert.match(route, /<CompleteBackupExport/);
+  assert.match(adapter, /exportPersistedProgressBackup/);
+  assert.match(adapter, /loadVocabulary/);
+  assert.match(adapter, /loadConversation/);
+  assert.match(ui, /Gesamtes Archiv erzeugen/);
+  assert.match(ui, /Nur Export/);
+  assert.match(model, /restoreSupported: false/);
+});

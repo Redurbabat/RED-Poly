@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { PolyBackupTransfer } from "@/components/poly-backup-transfer";
+import { CompleteBackupExport } from "@/components/complete-backup-export";
 import { PolyButton } from "@/components/red-poly-ui";
 import { exportPersistedProgressBackup, restoreProgressBackup } from "@/lib/store";
 import { useThemeColors } from "@/lib/theme";
@@ -11,7 +12,7 @@ import { useThemeColors } from "@/lib/theme";
 /**
  * Real, explicit device backup/restore using the guarded Core Data APIs.
  * Personal data is never sent to a server or automatically restored.
- * The separate WordPecker vocabulary-v1 store has its own JSON export.
+ * A separate all-in-one export archives progress, vocabulary and conversation.
  */
 export default function BackupScreen() {
   const colors = useThemeColors();
@@ -32,6 +33,7 @@ export default function BackupScreen() {
           Keep a private copy before changing device or installing a differently
           identified app. Restoring replaces your existing course progress.
         </Text>
+        <CompleteBackupExport />
         <PolyBackupTransfer
           exportPersistedBackup={exportPersistedProgressBackup}
           restorePersistedBackup={restoreProgressBackup}

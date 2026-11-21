@@ -60,6 +60,23 @@ async function main() {
     assert.equal(backup.format, "red-poly-progress");
     assert.equal(backup.version, 1);
     assert.ok(backup.state, "course progress must be part of the backup");
+    // The all-in-one export must include the persisted word and demo conversation.
+    await page.getByRole("button", { name: "Gesamtes Archiv erzeugen" }).click();
+    await page.getByText(/Gesamtarchiv bereit/).waitFor();
+    const archiveDownload = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Gesamtarchiv als JSON herunterladen" }).click();
+    const downloaded = await archiveDownload;
+    assert.match(downloaded.suggestedFilename(), /^red-poly-gesamtbackup-.*\\.json$/);
+    const fullBackup = JSON.parse(fs.readFileSync(await downloaded.path(), "utf8"));
+    assert.equal(fullBackup.format, "red-poly-device-backup");
+    assert.equal(fullBackup.version, 1);
+    assert.equal(fullBackup.restoreSupported, false);
+    assert.equal(fullBackup.data.progress.format, "red-poly-progress");
+    assert.ok(fullBackup.data.vocabulary.lists.some((list) =>
+      list.words.some((word) => word.value === "Haus" && word.translation === "house")
+    ));
+    assert.ok(fullBackup.data.conversation.messages.some((msg) => msg.text === "Hello"));
+
     await page.screenshot({ path: path.join(screenshots, "integrated-feature-smoke.png"), fullPage: true });
     assert.deepEqual(errors, [], "Uncaught errors during integrated browser smoke");
     console.log("PASS: vocabulary persistence, conversation demo and real progress backup");
