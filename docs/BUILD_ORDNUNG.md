@@ -1,6 +1,6 @@
 # RED POLY – geordnete Projekt- und Build-Struktur
 
-Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Native-App abgestimmt. **Bestehender Quellcode wird nicht doppelt kopiert oder verschoben.** Besonders die Routen unter src/app muessen erhalten bleiben, damit Expo Router weiterhin funktioniert.
+Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Native-App abgestimmt. **Expo-Routen und oeffentliche Modulimporte bleiben erhalten.** Die Vokabel-Implementierung ist innerhalb ihres Features in Daten, Uebungen und Auswertung aufgeteilt. Die bisherigen Importdateien bleiben als kompatible Weiterleitungen bestehen, damit bestehende UI-Routen nicht brechen.
 
 ## 1. Quellcode (GitHub: bleibt erhalten)
 
@@ -14,7 +14,17 @@ Diese Struktur ist an RED ION angelehnt, aber auf die vorhandene Expo/React-Nati
     │   │   └── backup.tsx           Sicherung und Wiederherstellung
     │   ├── features/                Fachbereiche (analog RED ION bereiche/)
     │   │   ├── conversation/        Gespraechs-Engine und Spracherkennung
-    │   │   └── vocabulary/          Wortlisten, Quiz, Statistik, Wiederholung
+    │   │   └── vocabulary/          Wortlisten und Uebungen
+    │   │       ├── data/           Datenzugriff, Versionierung, Transfer
+    │   │       │   ├── storage.ts
+    │   │       │   └── transfer.ts
+    │   │       ├── exercises/      Quiz, Schreiben und Wortbank
+    │   │       │   ├── multiple-choice.ts
+    │   │       │   ├── word-bank.ts
+    │   │       │   └── writing.ts
+    │   │       ├── analytics/
+    │   │       │   └── statistics.ts
+    │   │       └── *.ts            Kompatibilitaets-Exports fuer alte Pfade
     │   ├── lib/                     Gemeinsamer Kern (analog RED ION kern/ und core/)
     │   │   ├── store.ts             Lernfortschritt
     │   │   ├── srs.ts               Wiederholungsalgorithmus
@@ -78,7 +88,7 @@ Das Script entfernt bei erneutem Staging alte Web-Artefakte aus den beiden gener
 
 ## 4. Regeln fuer spaetere Module
 
-- Neue Lernfunktionen unter src/features/<bereich>/ als eigene Einheit mit Datenmodell, Engine, UI-Anbindung und Tests entwickeln.
+- Neue Lernfunktionen unter src/features/<bereich>/ als eigene Einheit mit Datenmodell, Engine, UI-Anbindung und Tests entwickeln. Die Vokabel-Fachlogik ist bereits in data/, exercises/ und analytics/ aufgeteilt.
 - Wiederverwendbare Algorithmen und Datenzugriffe in src/lib/ halten.
 - Expo-Routen unter src/app/ belassen; keine verschachtelten Quellcode-Kopien in build/.
 - Navigation und Komponenten unter src/components/ zentral halten.
