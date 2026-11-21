@@ -8,6 +8,7 @@ RED POLY ist eine **lokal nutzbare Sprachlern-App** auf Basis der vorhandenen Li
 
 - **Lernpfad:** acht gebündelte Sprachkurse mit Übungen, XP, Streaks und Wiederholungen.
 - **Meine Vokabeln:** Wortlisten, Offline-Karteikarten, Wortbank-/Schreibübungen, Mehrfachauswahl, lokale JSON-Sicherung. Aktuell separate Vokabelspeicherung `red-poly:vocabulary-v1`.
+  - Der Vokabel-Code ist jetzt modular aufgeteilt in `src/features/vocabulary/data/`, `exercises/` und `analytics/`. Bestehende Importe bleiben über Weiterleitungsdateien stabil; der gespeicherte Schlüssel und die Lernstände werden nicht verändert.
 - **Sprachgespräche:** offline gekennzeichneter Gesprächs-Demomodus. Optionale Web-/native Spracheingabe nur mit Zustimmung, kein Live-KI-Provider.
 - **Gesamtarchiv:** Im Profil unter **Backup & restore** lassen sich Kursfortschritt, Wortlisten und Gesprächsverlauf in **einer JSON-Datei exportieren**. Es handelt sich ausdrücklich **nur um einen Export**; automatische Gesamtwiederherstellung und Cloud-Synchronisation fehlen noch. Das Archiv ist unverschlüsselt und muss privat aufbewahrt werden.
 - **Backup:** Über **Profil → Backup & restore** ist ein ausdrücklich gestarteter, geprüfter Export/Restore des Kursfortschritts verfügbar. Eigene Wortlisten lassen sich weiterhin getrennt in **Meine Vokabeln** sichern.
