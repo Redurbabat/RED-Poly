@@ -52,3 +52,48 @@ mobile/
 
 - `../AGENTS.md` — repo overview, content pipeline, commands
 - `../docs/plan.md` — roadmap (M0–M4), legal boundary on Duolingo content
+
+## Cloudflare Workers – RED POLY Web
+
+Die **Web-Version** von RED POLY kann auf Cloudflare Workers bereitgestellt werden.
+iOS- und Android-Builds bleiben davon unberührt. Die Lernfortschritte werden
+weiterhin lokal im Browser/Geraet gespeichert; dieses Deployment fuegt
+**keine Cloud-Synchronisation und keine Nutzerkonten** hinzu.
+
+Konfiguration:
+- `wrangler.jsonc` – Worker-Name `red-poly`, statische Dateien aus `dist/`,
+  SPA-Fallback fuer direkte Links (z. B. `/lesson/123`).
+- `worker/index.ts` – minimales Worker-Script mit `GET /api/health` (Statuscheck)
+  und Weitergabe an die statischen Expo-Web-Dateien.
+- `.github/workflows/cloudflare-workers.yml` – Web-Build in Pull Requests,
+  automatisches Deployment bei Push auf `main` (nur mit eingerichteten Secrets).
+
+### Lokal deployen
+
+```bash
+bun install --frozen-lockfile
+bun run build:web
+bunx wrangler@4 login
+bunx wrangler@4 deploy
+```
+
+Nach dem ersten erfolgreichen Deployment zeigt Wrangler eine URL wie
+`https://red-poly.<dein-workers-subdomain>.workers.dev` an.
+
+### Automatisches Deployment via GitHub Actions
+
+Unter **GitHub → RED-Poly → Settings → Secrets and variables → Actions**
+folgende **Repository-Secrets** anlegen:
+
+- `CLOUDFLARE_API_TOKEN`: Cloudflare-API-Token mit Worker-Deploy-Rechten
+  fuer dein Konto (z. B. „Edit Cloudflare Workers“ / „Workers Scripts: Edit“).
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare Account ID (kein geheimer Schluessel,
+  hier aber als Secret hinterlegt).
+
+Nach dem Merge dieses Pull Requests startet die Aktion bei neuen Pushes
+auf `main`. Bei Pull Requests erfolgt **nur ein Build/Test**, ohne Cloudflare-
+Zugangsdaten. Cloudflare Worker Build und Bereitstellung sind **nicht**
+gleichbedeutend mit einem iOS/Android-App-Build.
+
+Falls du die Cloudflare-Dashboard-Git-Integration statt GitHub Actions nutzt:
+Build-Befehl `bun run build:web`, Deploy-Befehl `bunx wrangler@4 deploy`.
