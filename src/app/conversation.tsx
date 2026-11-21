@@ -141,11 +141,6 @@ export default function ConversationScreen() {
     try { Speech.speak(text, { language: LANGUAGES.find((l) => l.code === language)?.locale, rate: level === "A1" ? 0.8 : 0.95, onError: () => setError("Sprachausgabe nicht verfügbar.") }); }
     catch { setError("Sprachausgabe nicht verfügbar."); }
   };
-  const chip = (label: string, selected: boolean, onPress: () => void) => (
-    <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={[styles.chip, { backgroundColor: selected ? colors.selectedBg : colors.surface, borderColor: selected ? colors.sky : colors.neutral200 }]}>
-      <Text style={{ color: colors.text, fontWeight: selected ? "700" : "500" }}>{label}</Text>
-    </Pressable>
-  );
   return <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={["top", "left", "right", "bottom"]}>
     <Stack.Screen options={{ headerShown: false }} />
     <View style={styles.header}>
@@ -156,11 +151,11 @@ export default function ConversationScreen() {
     <ScrollView ref={scroll} onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: false })} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
       <Text style={[styles.notice, { color: colors.text }]}>OFFLINE-DEMO · Keine echte KI. Antworten sind vorbereitete Übungssätze. Keine Grammatikprüfung. Diktat optional nach Einwilligung.</Text>
       <Text style={{ color: colors.textMuted }}>Sprache</Text>
-      <View style={styles.row}>{LANGUAGES.map((l) => chip(l.name, language === l.code, () => change("language", l.code)))}</View>
+      <View style={styles.row}>{LANGUAGES.map((l) => <ChoiceChip key={l.code} label={l.name} selected={language === l.code} onPress={() => change("language", l.code)} />)}</View>
       <Text style={{ color: colors.textMuted }}>Niveau</Text>
-      <View style={styles.row}>{OPTIONS.map((v) => chip(v, level === v, () => change("level", v)))}</View>
+      <View style={styles.row}>{OPTIONS.map((v) => <ChoiceChip key={v} label={v} selected={level === v} onPress={() => change("level", v)} />)}</View>
       <Text style={{ color: colors.textMuted }}>Thema</Text>
-      <View style={styles.row}>{TOPICS.map((t) => chip(t.label, topic === t.id, () => change("topic", t.id)))}</View>
+      <View style={styles.row}>{TOPICS.map((t) => <ChoiceChip key={t.id} label={t.label} selected={topic === t.id} onPress={() => change("topic", t.id)} />)}</View>
       <Pressable onPress={begin} style={[styles.action, { backgroundColor: colors.green }]} accessibilityRole="button"><Text style={styles.actionText}>{messages.length ? "Neues Gespräch" : "Gespräch starten"}</Text></Pressable>
       {messages.map((m) => <View key={m.id} style={[styles.bubble, { backgroundColor: m.role === "learner" ? colors.selectedBg : colors.neutral100, alignSelf: m.role === "learner" ? "flex-end" : "flex-start" }]}>
         <Text style={{ color: colors.text }}>{m.text}</Text>
@@ -208,6 +203,18 @@ export default function ConversationScreen() {
     </KeyboardAvoidingView>
   </SafeAreaView>;
 }
+// A true React component, not an inline helper called during render.
+// Its callbacks run only on user press, avoiding render-time access to refs.
+function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const colors = useThemeColors();
+  return (
+    <Pressable accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress}
+      style={[styles.chip, { backgroundColor: selected ? colors.selectedBg : colors.surface, borderColor: selected ? colors.sky : colors.neutral200 }]}>
+      <Text style={{ color: colors.text, fontWeight: selected ? "700" : "500" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1 }, header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 18, gap: 10 },
   title: { fontSize: 18, fontWeight: "800" }, body: { paddingHorizontal: 16, paddingBottom: 28, gap: 12 },

@@ -15,6 +15,9 @@ import {
   type VocabularyWord,
 } from "@/features/vocabulary/storage";
 
+// Timestamp is generated only when the save handler runs, never during rendering.
+function eventTimestamp(): number { return Date.now(); }
+
 export default function VocabularyScreen() {
   const styles = useStyles();
   const courseId = useProgress((s) => s.activeCourseId);
@@ -95,7 +98,7 @@ export default function VocabularyScreen() {
     const wordValue = value.trim();
     const wordTranslation = translation.trim();
     if (!wordValue || !wordTranslation) { setError("Enter a word and a translation."); return; }
-    const now = Date.now();
+    const now = eventTimestamp();
     const existing = selected.words.find((w) => w.id === editId);
     const word: VocabularyWord = {
       id: existing?.id ?? vocabularyId(),

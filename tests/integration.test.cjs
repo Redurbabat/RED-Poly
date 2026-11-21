@@ -37,3 +37,13 @@ test("Expo speech, regression tests, and Cloudflare remain configured", () => {
   assert.match(read("worker/index.ts"), /api\/health/);
   assert.match(read("src/lib/store.ts"), /progress-v2/);
 });
+
+test("the real backup route is reachable from Profile and uses guarded persistence", () => {
+  const profile = read("src/app/(tabs)/profile.tsx");
+  const backup = read("src/app/backup.tsx");
+  assert.match(profile, /router\.push\("\/backup"\)/);
+  assert.match(backup, /exportPersistedProgressBackup/);
+  assert.match(backup, /restoreProgressBackup/);
+  assert.match(backup, /PolyBackupTransfer/);
+  assert.match(read("src/lib/store.ts"), /export async function restoreProgressBackup/);
+});
