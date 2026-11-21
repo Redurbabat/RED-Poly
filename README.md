@@ -52,3 +52,47 @@ mobile/
 
 - `../AGENTS.md` — repo overview, content pipeline, commands
 - `../docs/plan.md` — roadmap (M0–M4), legal boundary on Duolingo content
+
+## Deploy the web app to Cloudflare Workers
+
+RED POLY is an Expo Router app. Cloudflare serves only its **web export**, not
+native iOS/Android packages. The Worker entry point is `worker/index.js`,
+and `wrangler.jsonc` publishes the exported `dist/` as static assets.
+Expo's `web.output: "single"` makes deep links such as `/lesson/123`
+work via the SPA fallback.
+
+### Deploy from a local checkout
+
+```bash
+bun install --frozen-lockfile
+npx wrangler@4 login
+bun run deploy:cloudflare
+```
+
+The command exports the web app into `dist/` and deploys the Worker named
+`red-poly`. The live address is printed by Wrangler after a successful
+deployment. Run `bun run preview:cloudflare` for a local Workers preview.
+
+### Deploy automatically from GitHub (Workers Builds)
+
+In the Cloudflare dashboard open **Workers & Pages → Create application →
+GitHub**, select `Redurbabat/RED-Poly` and connect the `main` branch
+**after merging the deployment PR**. Configure:
+
+- **Worker name:** `red-poly` (must match `wrangler.jsonc`)
+- **Root directory:** repository root
+- **Build command:** `bun run build:web`
+- **Deploy command:** `npx wrangler@4 deploy`
+
+The existing `bun.lock` is used for dependency installation. If your build
+environment does not install dependencies automatically, configure the build
+command as `bun install --frozen-lockfile && bun run build:web`.
+
+Test `/api/health` to confirm the Worker is reachable. Unknown `/api/*`
+paths return HTTP 404.
+
+**Data note:** Cloudflare Workers static hosting does not sync or store
+language-learning progress across devices. RED POLY currently stores
+progress locally. Cloud synchronization would need a separate authenticated
+backend and a database (for example Cloudflare D1), with explicit consent
+and access control. Never commit credentials or secrets.
