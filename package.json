@@ -52,7 +52,7 @@
     "cloudflare:deploy": "bun run build:web && bunx wrangler@4 deploy",
     "test:integration": "node --test tests/integration.test.cjs tests/vocabulary.test.cjs tests/quality.test.cjs tests/backup-envelope.test.cjs tests/release-identity.test.cjs && bun run test:core && node --experimental-strip-types --test tests/conversation-engine.test.mjs tests/conversation-web-speech.test.mjs tests/conversation-native-speech.test.mjs tests/conversation-app-identity.test.mjs",
     "build": "expo export --platform web",
-    "cloudflare:preview": "bun run build:web && bunx wrangler@4 preview"
+    "cloudflare:preview": "bun run build:web && bunx wrangler@4.135.0 preview"
   },
   "private": true,
   "packageManager": "bun@1.3.5"
