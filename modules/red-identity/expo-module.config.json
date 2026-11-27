@@ -1,0 +1,16 @@
+{
+  "platforms": [
+    "apple",
+    "android"
+  ],
+  "apple": {
+    "modules": [
+      "RedIdentityModule"
+    ]
+  },
+  "android": {
+    "modules": [
+      "expo.modules.redidentity.RedIdentityModule"
+    ]
+  }
+}

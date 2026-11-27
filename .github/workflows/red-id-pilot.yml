@@ -1,0 +1,28 @@
+name: RED POLY identity pilot
+on:
+  pull_request:
+    paths:
+      - 'modules/red-identity/**'
+      - 'src/lib/red-id/**'
+      - 'src/components/red-home-identity.tsx'
+      - 'src/app/(tabs)/profile.tsx'
+      - 'app.json'
+      - '.github/workflows/red-id-pilot.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx tsc --noEmit
+      - run: |
+          bunx expo-modules-autolinking resolve --platform apple > /tmp/apple.json
+          bunx expo-modules-autolinking resolve --platform android > /tmp/android.json
+          grep -q RedIdentityModule /tmp/apple.json
+          grep -q RedIdentityModule /tmp/android.json
+      - run: bunx expo export --platform web --output-dir /tmp/red-poly-web

@@ -5,6 +5,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { RedHomeIdentity } from "@/components/red-home-identity";
 import { Flag } from "@/components/flag";
 import { useCourseContent } from "@/lib/content";
 import {
@@ -216,6 +217,7 @@ export default function ProfileScreen() {
             Device follows your phone&apos;s light or dark setting.
           </Text>
         </View>
+        <RedHomeIdentity />
       </ScrollView>
     </SafeAreaView>
   );
