@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.ahmet.lingo",
       "icon": "./assets/images/icon.png",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocalNetworkUsageDescription": "Connect to your own RED Home Server only when you choose to sign in."
       }
     },
     "android": {
