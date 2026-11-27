@@ -8,3 +8,8 @@ no new npm dependencies. Native code rights must be reviewed before release.
 CI verifies TS, autolinking and web bundle; native build and physical tests
 are still required. iOS/Android application identifiers and EAS owner are
 unchanged intentionally.
+
+The mobile check uses `tsconfig.mobile.json`: the independent upstream
+WordPecker integration has its own dependencies and is not included in the
+Expo app compiler check. No existing TypeScript errors are suppressed in
+`src/`; the original repository-wide configuration remains unchanged.
